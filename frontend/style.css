@@ -103,6 +103,21 @@ html, body {
   font-size: 12px;
 }
 
+.settings-group {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-group-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text3);
+  font-family: var(--mono);
+}
+
 #settings-panel {
   max-height: 0;
   opacity: 0;
@@ -114,7 +129,7 @@ html, body {
 }
 
 #settings-panel.panel-open {
-  max-height: 120px;
+  max-height: 280px;
   opacity: 1;
   transform: translateY(0);
   padding-top: 16px;
@@ -169,6 +184,25 @@ html, body {
 .switch input:focus-visible + .switch-slider {
   outline: 2px solid rgba(79,142,247,.35);
   outline-offset: 2px;
+}
+
+.mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mode-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text2);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.mode-option input {
+  accent-color: var(--accent);
 }
 
 /* ── PANELS ───────────────────────────────────────────────── */

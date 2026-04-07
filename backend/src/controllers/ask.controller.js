@@ -40,7 +40,7 @@ function buildDocumentListAnswer(documents) {
 }
 
 async function handleAsk(req, res) {
-  const { question } = req.body;
+  const { question, responseMode } = req.body;
 
   if (!question || question.trim().length === 0) {
     return res.status(400).json({ error: 'Pergunta nao pode estar vazia.' });
@@ -67,7 +67,7 @@ async function handleAsk(req, res) {
       });
     }
 
-    const answer = await generateAnswer(trimmedQuestion, chunks);
+    const answer = await generateAnswer(trimmedQuestion, chunks, responseMode);
 
     const sources = chunks.map((c) => ({
       filename: c.original_name || c.filename || 'documento',

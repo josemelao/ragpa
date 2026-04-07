@@ -19,14 +19,17 @@ const refreshDocsBtn = document.getElementById('refresh-docs-btn');
 const settingsBtn = document.getElementById('settings-btn');
 const settingsPanel = document.getElementById('settings-panel');
 const toggleSources = document.getElementById('toggle-sources');
+const responseModeInputs = document.querySelectorAll('input[name="response-mode"]');
 
 const SETTINGS_KEY = 'docRagSettings';
+const DEFAULT_RESPONSE_MODE = 'balanced';
 
 let selectedFile = null;
 let isUploading = false;
 let isAsking = false;
 let isDeletingDocument = false;
 let showSources = true;
+let responseMode = DEFAULT_RESPONSE_MODE;
 
 browseBtn.addEventListener('click', () => fileInput.click());
 dropZone.addEventListener('click', (event) => {
@@ -58,6 +61,9 @@ docList.addEventListener('click', handleDocListClick);
 askBtn.addEventListener('click', doAsk);
 settingsBtn.addEventListener('click', toggleSettingsPanel);
 toggleSources.addEventListener('change', handleToggleSources);
+responseModeInputs.forEach((input) => {
+  input.addEventListener('change', handleResponseModeChange);
+});
 
 questionInput.addEventListener('input', () => {
   questionInput.style.height = 'auto';
@@ -232,7 +238,10 @@ async function doAsk() {
     const response = await fetch(`${API_BASE}/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({
+        question,
+        responseMode,
+      }),
     });
     const data = await response.json();
 
@@ -361,8 +370,10 @@ function loadSettings() {
     if (!raw) return;
     const parsed = JSON.parse(raw);
     showSources = parsed.showSources !== false;
+    responseMode = normalizeResponseMode(parsed.responseMode);
   } catch {
     showSources = true;
+    responseMode = DEFAULT_RESPONSE_MODE;
   }
 }
 
@@ -371,12 +382,16 @@ function saveSettings() {
     SETTINGS_KEY,
     JSON.stringify({
       showSources,
+      responseMode,
     })
   );
 }
 
 function syncSettingsUI() {
   toggleSources.checked = showSources;
+  responseModeInputs.forEach((input) => {
+    input.checked = input.value === responseMode;
+  });
 }
 
 function toggleSettingsPanel() {
@@ -387,6 +402,16 @@ function toggleSettingsPanel() {
 function handleToggleSources() {
   showSources = toggleSources.checked;
   saveSettings();
+}
+
+function handleResponseModeChange(event) {
+  responseMode = normalizeResponseMode(event.target.value);
+  saveSettings();
+}
+
+function normalizeResponseMode(value) {
+  const allowed = ['conservative', 'balanced', 'flexible'];
+  return allowed.includes(value) ? value : DEFAULT_RESPONSE_MODE;
 }
 
 (function init() {

@@ -29,6 +29,39 @@
             <span class="switch-slider"></span>
           </span>
         </label>
+        <div class="settings-group">
+          <span class="settings-group-label">Modo de resposta</span>
+          <div class="mode-options" id="response-mode-options">
+            <label class="mode-option" for="response-mode-conservative">
+              <input
+                type="radio"
+                name="response-mode"
+                id="response-mode-conservative"
+                value="conservative"
+              />
+              <span>Conservadora</span>
+            </label>
+            <label class="mode-option" for="response-mode-balanced">
+              <input
+                type="radio"
+                name="response-mode"
+                id="response-mode-balanced"
+                value="balanced"
+                checked
+              />
+              <span>Equilibrada</span>
+            </label>
+            <label class="mode-option" for="response-mode-flexible">
+              <input
+                type="radio"
+                name="response-mode"
+                id="response-mode-flexible"
+                value="flexible"
+              />
+              <span>Flexivel</span>
+            </label>
+          </div>
+        </div>
       </section>
 
       <section class="panel" id="upload-panel">
