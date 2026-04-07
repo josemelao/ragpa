@@ -2,8 +2,8 @@ const { generateEmbedding } = require('./embedding.service');
 const { searchSimilarChunks, searchChunksByText } = require('./vectorStore.service');
 const logger = require('../utils/logger');
 
-const TOP_K = 8;
-const TEXT_FALLBACK_K = 8;
+const TOP_K = 4;
+const TEXT_FALLBACK_K = 4;
 
 function mergeChunks(textMatches, vectorMatches, topK) {
   const seen = new Set();
