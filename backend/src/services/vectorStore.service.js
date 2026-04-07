@@ -126,7 +126,30 @@ async function listDocuments() {
   return data || [];
 }
 
+async function deleteDocument(documentId) {
+  const supabase = getSupabaseClient();
+
+  const { data: existing, error: fetchError } = await supabase
+    .from('documents')
+    .select('id, filename, original_name')
+    .eq('id', documentId)
+    .single();
+
+  if (fetchError) throw new Error(`Erro ao localizar documento: ${fetchError.message}`);
+
+  const { error: deleteError } = await supabase
+    .from('documents')
+    .delete()
+    .eq('id', documentId);
+
+  if (deleteError) throw new Error(`Erro ao apagar documento: ${deleteError.message}`);
+
+  logger.info(`Documento removido: id=${existing.id} | ${existing.original_name}`);
+  return existing;
+}
+
 module.exports = {
+  deleteDocument,
   saveDocument,
   saveChunks,
   searchSimilarChunks,

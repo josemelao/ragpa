@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const config = require('../config/env');
 const { handleUpload } = require('../controllers/upload.controller');
+const { handleDeleteDocument } = require('../controllers/document.controller');
 const { listDocuments } = require('../services/vectorStore.service');
 
 const router = express.Router();
@@ -47,6 +48,7 @@ const upload = multer({
 });
 
 router.post('/', upload.single('file'), handleUpload);
+router.delete('/documents/:id', handleDeleteDocument);
 
 router.get('/documents', async (req, res) => {
   try {

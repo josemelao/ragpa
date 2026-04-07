@@ -1,64 +1,77 @@
-/* ============================================================
-   RAG MVP — app.js
-   Vanilla JS, sem frameworks, sem build step
-   ============================================================ */
-
 const API_BASE = '/api';
 
-/* ── ELEMENTOS ───────────────────────────────────────────── */
-const dropZone        = document.getElementById('drop-zone');
-const fileInput       = document.getElementById('file-input');
-const browseBtn       = document.getElementById('browse-btn');
-const filePreview     = document.getElementById('file-preview');
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const browseBtn = document.getElementById('browse-btn');
+const filePreview = document.getElementById('file-preview');
 const fileNameDisplay = document.getElementById('file-name-display');
-const removeFileBtn   = document.getElementById('remove-file-btn');
-const uploadBtn       = document.getElementById('upload-btn');
-const uploadStatus    = document.getElementById('upload-status');
+const removeFileBtn = document.getElementById('remove-file-btn');
+const uploadBtn = document.getElementById('upload-btn');
+const uploadStatus = document.getElementById('upload-status');
 
-const questionInput   = document.getElementById('question-input');
-const askBtn          = document.getElementById('ask-btn');
+const questionInput = document.getElementById('question-input');
+const askBtn = document.getElementById('ask-btn');
 
-const chatArea        = document.getElementById('chat-area');
-const chatEmpty       = document.getElementById('chat-empty');
-const docList         = document.getElementById('doc-list');
-const refreshDocsBtn  = document.getElementById('refresh-docs-btn');
+const chatArea = document.getElementById('chat-area');
+const chatEmpty = document.getElementById('chat-empty');
+const docList = document.getElementById('doc-list');
+const refreshDocsBtn = document.getElementById('refresh-docs-btn');
 
-/* ── ESTADO ──────────────────────────────────────────────── */
 let selectedFile = null;
-let isUploading  = false;
-let isAsking     = false;
+let isUploading = false;
+let isAsking = false;
+let isDeletingDocument = false;
 
-/* ── UPLOAD — DRAG & DROP ────────────────────────────────── */
 browseBtn.addEventListener('click', () => fileInput.click());
-dropZone.addEventListener('click', (e) => {
-  if (e.target !== browseBtn) fileInput.click();
+dropZone.addEventListener('click', (event) => {
+  if (event.target !== browseBtn) fileInput.click();
 });
 
 fileInput.addEventListener('change', () => {
   if (fileInput.files[0]) setSelectedFile(fileInput.files[0]);
 });
 
-dropZone.addEventListener('dragover', (e) => {
-  e.preventDefault();
+dropZone.addEventListener('dragover', (event) => {
+  event.preventDefault();
   dropZone.classList.add('drag-over');
 });
+
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', (e) => {
-  e.preventDefault();
+
+dropZone.addEventListener('drop', (event) => {
+  event.preventDefault();
   dropZone.classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (f) setSelectedFile(f);
+  const file = event.dataTransfer.files[0];
+  if (file) setSelectedFile(file);
 });
 
 removeFileBtn.addEventListener('click', clearSelectedFile);
+uploadBtn.addEventListener('click', doUpload);
+refreshDocsBtn.addEventListener('click', loadDocuments);
+docList.addEventListener('click', handleDocListClick);
+askBtn.addEventListener('click', doAsk);
+
+questionInput.addEventListener('input', () => {
+  questionInput.style.height = 'auto';
+  questionInput.style.height = questionInput.scrollHeight + 'px';
+});
+
+questionInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    if (!askBtn.disabled && !isAsking) doAsk();
+  }
+});
 
 function setSelectedFile(file) {
   const allowed = ['.txt', '.md', '.pdf'];
   const ext = '.' + file.name.split('.').pop().toLowerCase();
+
   if (!allowed.includes(ext)) {
-    showUploadStatus('Tipo não permitido. Use .txt, .md ou .pdf', 'error');
+    showUploadStatus('Tipo nao permitido. Use .txt, .md ou .pdf', 'error');
     return;
   }
+
   selectedFile = file;
   fileNameDisplay.textContent = file.name;
   filePreview.classList.remove('hidden');
@@ -73,102 +86,125 @@ function clearSelectedFile() {
   uploadBtn.disabled = true;
 }
 
-/* ── UPLOAD — ENVIO ─────────────────────────────────────── */
-uploadBtn.addEventListener('click', doUpload);
-
 async function doUpload() {
   if (!selectedFile || isUploading) return;
 
   isUploading = true;
   setBtnLoading(uploadBtn, true);
-  showUploadStatus('Enviando e indexando…', 'info');
+  showUploadStatus('Enviando e indexando...', 'info');
 
   const formData = new FormData();
   formData.append('file', selectedFile);
 
   try {
-    const res = await fetch(`${API_BASE}/upload`, {
+    const response = await fetch(`${API_BASE}/upload`, {
       method: 'POST',
       body: formData,
     });
-    const data = await res.json();
+    const data = await response.json();
 
-    if (!res.ok) throw new Error(data.error || 'Erro no upload.');
+    if (!response.ok) throw new Error(data.error || 'Erro no upload.');
 
     showUploadStatus(
-      `✓ "${data.document.name}" indexado com sucesso (${data.document.chunks} chunks)`,
+      `OK "${data.document.name}" indexado com sucesso (${data.document.chunks} chunks)`,
       'success'
     );
     clearSelectedFile();
-    loadDocuments();
-
-    // Habilita perguntas
+    await loadDocuments();
     askBtn.disabled = false;
     questionInput.disabled = false;
     hideChatEmpty();
   } catch (err) {
-    showUploadStatus(`✗ ${err.message}`, 'error');
+    showUploadStatus(`Erro: ${err.message}`, 'error');
   } finally {
     isUploading = false;
     setBtnLoading(uploadBtn, false);
   }
 }
 
-/* ── DOCUMENTOS — LISTA ──────────────────────────────────── */
-refreshDocsBtn.addEventListener('click', loadDocuments);
-
 async function loadDocuments() {
   try {
-    const res = await fetch(`${API_BASE}/upload/documents`);
-    const data = await res.json();
-    renderDocList(data.documents || []);
+    const response = await fetch(`${API_BASE}/upload/documents`);
+    const data = await response.json();
+    const documents = data.documents || [];
 
-    if (data.documents && data.documents.length > 0) {
+    renderDocList(documents);
+
+    if (documents.length > 0) {
       askBtn.disabled = false;
       questionInput.disabled = false;
       hideChatEmpty();
+    } else {
+      askBtn.disabled = true;
+      questionInput.disabled = true;
     }
   } catch {
-    // falha silenciosa na lista
+    // silent fail
   }
 }
 
-function renderDocList(docs) {
-  if (!docs.length) {
+function renderDocList(documents) {
+  if (!documents.length) {
     docList.innerHTML = '<li class="doc-item muted">Nenhum documento ainda.</li>';
     return;
   }
 
-  docList.innerHTML = docs.map((d) => {
-    const ext = d.original_name?.split('.').pop()?.toUpperCase() || '?';
-    const kb = d.size_bytes ? Math.round(d.size_bytes / 1024) + ' KB' : '';
-    const date = d.created_at ? new Date(d.created_at).toLocaleDateString('pt-BR') : '';
-    return `
-      <li class="doc-item">
-        <span class="doc-icon">📄</span>
-        <div class="doc-info">
-          <div class="doc-info-name" title="${escapeHtml(d.original_name)}">${escapeHtml(d.original_name)}</div>
-          <div class="doc-info-meta">${ext} · ${kb} · ${date}</div>
-        </div>
-      </li>`;
-  }).join('');
+  docList.innerHTML = documents
+    .map((document) => {
+      const ext = document.original_name?.split('.').pop()?.toUpperCase() || '?';
+      const kb = document.size_bytes ? Math.round(document.size_bytes / 1024) + ' KB' : '';
+      const date = document.created_at
+        ? new Date(document.created_at).toLocaleDateString('pt-BR')
+        : '';
+
+      return `
+        <li class="doc-item" data-document-id="${escapeHtml(document.id)}">
+          <span class="doc-icon">DOC</span>
+          <div class="doc-info">
+            <div class="doc-info-name" title="${escapeHtml(document.original_name)}">${escapeHtml(document.original_name)}</div>
+            <div class="doc-info-meta">${ext} · ${kb} · ${date}</div>
+          </div>
+          <button class="doc-delete-btn" type="button" data-document-id="${escapeHtml(document.id)}" title="Apagar documento">x</button>
+        </li>`;
+    })
+    .join('');
 }
 
-/* ── PERGUNTA ────────────────────────────────────────────── */
-questionInput.addEventListener('input', () => {
-  // Auto-resize do textarea
-  questionInput.style.height = 'auto';
-  questionInput.style.height = questionInput.scrollHeight + 'px';
-});
+async function handleDocListClick(event) {
+  const button = event.target.closest('.doc-delete-btn');
+  if (!button || isDeletingDocument) return;
 
-questionInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    if (!askBtn.disabled && !isAsking) doAsk();
+  const documentId = button.dataset.documentId;
+  const docItem = button.closest('.doc-item');
+  const documentName =
+    docItem?.querySelector('.doc-info-name')?.textContent?.trim() || 'documento';
+
+  const confirmed = window.confirm(
+    `Apagar "${documentName}" do indice? Isso remove o documento e todos os chunks.`
+  );
+
+  if (!confirmed) return;
+
+  isDeletingDocument = true;
+  button.disabled = true;
+
+  try {
+    const response = await fetch(`${API_BASE}/upload/documents/${documentId}`, {
+      method: 'DELETE',
+    });
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.error || 'Erro ao apagar documento.');
+
+    showUploadStatus(`OK "${documentName}" removido do indice.`, 'success');
+    await loadDocuments();
+  } catch (err) {
+    showUploadStatus(`Erro: ${err.message}`, 'error');
+  } finally {
+    isDeletingDocument = false;
+    button.disabled = false;
   }
-});
-
-askBtn.addEventListener('click', doAsk);
+}
 
 async function doAsk() {
   const question = questionInput.value.trim();
@@ -178,29 +214,27 @@ async function doAsk() {
   setBtnLoading(askBtn, true);
   questionInput.disabled = true;
 
-  // Exibe a pergunta no chat
   appendMessage('question', question);
   questionInput.value = '';
   questionInput.style.height = 'auto';
 
-  // Loader
-  const loadingEl = appendLoading();
+  const loadingElement = appendLoading();
 
   try {
-    const res = await fetch(`${API_BASE}/ask`, {
+    const response = await fetch(`${API_BASE}/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question }),
     });
-    const data = await res.json();
+    const data = await response.json();
 
-    loadingEl.remove();
+    loadingElement.remove();
 
-    if (!res.ok) throw new Error(data.error || 'Erro ao processar pergunta.');
+    if (!response.ok) throw new Error(data.error || 'Erro ao processar pergunta.');
 
     appendAnswer(data.answer, data.sources || []);
   } catch (err) {
-    loadingEl.remove();
+    loadingElement.remove();
     appendAnswer(`Erro: ${err.message}`, []);
   } finally {
     isAsking = false;
@@ -210,29 +244,28 @@ async function doAsk() {
   }
 }
 
-/* ── RENDER MENSAGENS ────────────────────────────────────── */
 function appendMessage(type, text) {
   hideChatEmpty();
 
-  const div = document.createElement('div');
-  div.className = `message message-${type}`;
-  div.textContent = text;
-  chatArea.appendChild(div);
+  const element = document.createElement('div');
+  element.className = `message message-${type}`;
+  element.textContent = text;
+  chatArea.appendChild(element);
   scrollChatToBottom();
-  return div;
+  return element;
 }
 
 function appendLoading() {
-  const div = document.createElement('div');
-  div.className = 'message message-loading';
-  div.innerHTML = `
+  const element = document.createElement('div');
+  element.className = 'message message-loading';
+  element.innerHTML = `
     <div class="loading-dots">
       <span></span><span></span><span></span>
     </div>
-    <span>Consultando documentos…</span>`;
-  chatArea.appendChild(div);
+    <span>Consultando documentos...</span>`;
+  chatArea.appendChild(element);
   scrollChatToBottom();
-  return div;
+  return element;
 }
 
 function appendAnswer(answerText, sources) {
@@ -250,15 +283,19 @@ function appendAnswer(answerText, sources) {
 }
 
 function renderSources(sources) {
-  const items = sources.map((s, i) => `
-    <div class="source-item">
-      <div class="source-header">
-        <span class="source-filename">📄 ${escapeHtml(s.filename)}</span>
-        <span class="source-chunk">chunk #${s.chunkIndex ?? i}</span>
-        ${s.similarity != null ? `<span class="source-score">sim: ${s.similarity}</span>` : ''}
-      </div>
-      <div class="source-excerpt">${escapeHtml(s.excerpt || '')}</div>
-    </div>`).join('');
+  const items = sources
+    .map(
+      (source, index) => `
+        <div class="source-item">
+          <div class="source-header">
+            <span class="source-filename">DOC ${escapeHtml(source.filename)}</span>
+            <span class="source-chunk">chunk #${source.chunkIndex ?? index}</span>
+            ${source.similarity != null ? `<span class="source-score">sim: ${source.similarity}</span>` : ''}
+          </div>
+          <div class="source-excerpt">${escapeHtml(source.excerpt || '')}</div>
+        </div>`
+    )
+    .join('');
 
   return `
     <div class="sources-block">
@@ -267,29 +304,29 @@ function renderSources(sources) {
     </div>`;
 }
 
-/* ── HELPERS ─────────────────────────────────────────────── */
-function showUploadStatus(msg, type) {
-  uploadStatus.textContent = msg;
+function showUploadStatus(message, type) {
+  uploadStatus.textContent = message;
   uploadStatus.className = `status-msg ${type}`;
   uploadStatus.classList.remove('hidden');
 }
 
-function clearStatus(el) {
-  el.textContent = '';
-  el.classList.add('hidden');
+function clearStatus(element) {
+  element.textContent = '';
+  element.classList.add('hidden');
 }
 
-function setBtnLoading(btn, loading) {
-  const text    = btn.querySelector('.btn-text');
-  const spinner = btn.querySelector('.btn-spinner');
+function setBtnLoading(button, loading) {
+  const text = button.querySelector('.btn-text');
+  const spinner = button.querySelector('.btn-spinner');
+
   if (loading) {
     text?.classList.add('hidden');
     spinner?.classList.remove('hidden');
-    btn.disabled = true;
+    button.disabled = true;
   } else {
     text?.classList.remove('hidden');
     spinner?.classList.add('hidden');
-    btn.disabled = false;
+    button.disabled = false;
   }
 }
 
@@ -310,12 +347,8 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-/* ── INIT ────────────────────────────────────────────────── */
 (function init() {
-  // Carrega documentos já indexados ao abrir
   loadDocuments();
-
-  // Desabilita input de pergunta até ter documentos
   askBtn.disabled = true;
   questionInput.disabled = true;
 })();
