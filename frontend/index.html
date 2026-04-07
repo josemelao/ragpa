@@ -3,52 +3,61 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RAG MVP — Consulta de Documentos</title>
+  <title>RAG MVP - Consulta de Documentos</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
   <div class="layout">
-
-    <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <div class="logo">
-          <span class="logo-icon">⬡</span>
-          <span class="logo-text">DocRAG</span>
+        <div class="sidebar-header-top">
+          <div class="logo">
+            <span class="logo-icon">[]</span>
+            <span class="logo-text">DocRAG</span>
+          </div>
+          <button class="icon-btn" id="settings-btn" title="Configuracoes">⚙</button>
         </div>
         <p class="logo-sub">Consulta inteligente de documentos</p>
       </div>
 
-      <!-- UPLOAD -->
+      <section class="panel hidden" id="settings-panel">
+        <h2 class="panel-title">Configuracoes</h2>
+        <label class="settings-option" for="toggle-sources">
+          <span>Mostrar fontes e chunks</span>
+          <span class="switch">
+            <input type="checkbox" id="toggle-sources" checked />
+            <span class="switch-slider"></span>
+          </span>
+        </label>
+      </section>
+
       <section class="panel" id="upload-panel">
         <h2 class="panel-title">Indexar documento</h2>
 
         <div class="drop-zone" id="drop-zone">
           <input type="file" id="file-input" accept=".txt,.md,.pdf" hidden />
-          <div class="drop-icon">📄</div>
+          <div class="drop-icon">DOC</div>
           <p class="drop-label">Arraste aqui ou <button class="link-btn" id="browse-btn">selecione</button></p>
-          <p class="drop-hint">.txt · .md · .pdf · máx 10MB</p>
+          <p class="drop-hint">.txt · .md · .pdf · max 10MB</p>
         </div>
 
         <div id="file-preview" class="file-preview hidden">
           <span class="file-name" id="file-name-display"></span>
-          <button class="icon-btn" id="remove-file-btn" title="Remover">✕</button>
+          <button class="icon-btn" id="remove-file-btn" title="Remover">x</button>
         </div>
 
         <button class="btn btn-primary" id="upload-btn" disabled>
           <span class="btn-text">Indexar arquivo</span>
-          <span class="btn-spinner hidden">⟳</span>
+          <span class="btn-spinner hidden">...</span>
         </button>
 
         <div id="upload-status" class="status-msg hidden"></div>
       </section>
 
-      <!-- DOCUMENTOS INDEXADOS -->
       <section class="panel" id="docs-panel">
         <h2 class="panel-title">
           Documentos indexados
-          <button class="icon-btn small" id="refresh-docs-btn" title="Atualizar">↺</button>
+          <button class="icon-btn small" id="refresh-docs-btn" title="Atualizar">↻</button>
         </h2>
         <ul class="doc-list" id="doc-list">
           <li class="doc-item muted">Nenhum documento ainda.</li>
@@ -56,32 +65,27 @@
       </section>
     </aside>
 
-    <!-- MAIN -->
     <main class="main">
-
       <div class="chat-area" id="chat-area">
         <div class="chat-empty" id="chat-empty">
-          <div class="chat-empty-icon">🔍</div>
-          <p>Indexe um documento ao lado e faça sua pergunta abaixo.</p>
+          <div class="chat-empty-icon">?</div>
+          <p>Indexe um documento ao lado e faca sua pergunta abaixo.</p>
         </div>
-        <!-- mensagens aparecem aqui -->
       </div>
 
       <div class="input-bar">
         <textarea
           id="question-input"
           class="question-input"
-          placeholder="Faça uma pergunta sobre os documentos indexados…"
+          placeholder="Faca uma pergunta sobre os documentos indexados..."
           rows="1"
         ></textarea>
         <button class="btn btn-ask" id="ask-btn" disabled>
           <span class="btn-text">Perguntar</span>
-          <span class="btn-spinner hidden">⟳</span>
+          <span class="btn-spinner hidden">...</span>
         </button>
       </div>
-
     </main>
-
   </div>
 
   <script src="app.js"></script>

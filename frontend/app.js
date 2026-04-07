@@ -16,11 +16,17 @@ const chatArea = document.getElementById('chat-area');
 const chatEmpty = document.getElementById('chat-empty');
 const docList = document.getElementById('doc-list');
 const refreshDocsBtn = document.getElementById('refresh-docs-btn');
+const settingsBtn = document.getElementById('settings-btn');
+const settingsPanel = document.getElementById('settings-panel');
+const toggleSources = document.getElementById('toggle-sources');
+
+const SETTINGS_KEY = 'docRagSettings';
 
 let selectedFile = null;
 let isUploading = false;
 let isAsking = false;
 let isDeletingDocument = false;
+let showSources = true;
 
 browseBtn.addEventListener('click', () => fileInput.click());
 dropZone.addEventListener('click', (event) => {
@@ -50,6 +56,8 @@ uploadBtn.addEventListener('click', doUpload);
 refreshDocsBtn.addEventListener('click', loadDocuments);
 docList.addEventListener('click', handleDocListClick);
 askBtn.addEventListener('click', doAsk);
+settingsBtn.addEventListener('click', toggleSettingsPanel);
+toggleSources.addEventListener('change', handleToggleSources);
 
 questionInput.addEventListener('input', () => {
   questionInput.style.height = 'auto';
@@ -275,7 +283,7 @@ function appendAnswer(answerText, sources) {
   wrap.innerHTML = `
     <span class="answer-badge">Resposta</span>
     <div class="answer-text">${escapeHtml(answerText)}</div>
-    ${sources.length ? renderSources(sources) : ''}
+    ${showSources && sources.length ? renderSources(sources) : ''}
   `;
 
   chatArea.appendChild(wrap);
@@ -347,7 +355,43 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    showSources = parsed.showSources !== false;
+  } catch {
+    showSources = true;
+  }
+}
+
+function saveSettings() {
+  localStorage.setItem(
+    SETTINGS_KEY,
+    JSON.stringify({
+      showSources,
+    })
+  );
+}
+
+function syncSettingsUI() {
+  toggleSources.checked = showSources;
+}
+
+function toggleSettingsPanel() {
+  settingsPanel.classList.toggle('hidden', false);
+  settingsPanel.classList.toggle('panel-open');
+}
+
+function handleToggleSources() {
+  showSources = toggleSources.checked;
+  saveSettings();
+}
+
 (function init() {
+  loadSettings();
+  syncSettingsUI();
   loadDocuments();
   askBtn.disabled = true;
   questionInput.disabled = true;
