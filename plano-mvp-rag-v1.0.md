@@ -1115,3 +1115,533 @@ Proximo passo:
 Observacoes:
 - esta etapa confirmou a operacao em nuvem para uploads novos; os arquivos antigos locais continuam apenas como legado
 ```
+
+---
+
+# 24. PLANO DE MEMORIA CONVERSACIONAL CONTROLADA (CHAT COM CONTEXTO CURTO + RESUMO)
+
+## Objetivo
+
+Adicionar memoria conversacional ao chat para melhorar perguntas de continuidade, sem transformar a conversa em fonte principal da verdade e sem aumentar alucinacao.
+
+O foco deve permanecer em:
+
+- contexto recuperado dos documentos
+- continuidade curta de conversa
+- resumo operacional da sessao
+- respostas com prioridade total para os documentos
+
+## Resultado esperado apos a implementacao
+
+Ao final desta evolucao:
+
+- o usuario podera continuar uma conversa sem repetir tudo a cada pergunta
+- o sistema lembrara o contexto recente da sessao
+- o backend mantera um resumo curto da conversa para preservar contexto sem inflar o prompt
+- o modelo continuara respondendo com base principal nos documentos
+- follow-ups como "e esse documento?", "resuma melhor isso", "qual a data mesmo?" passarao a funcionar melhor
+- o usuario podera iniciar nova conversa para limpar o contexto
+
+## Principio obrigatorio desta feature
+
+A memoria conversacional nao pode competir com o RAG documental.
+
+Regra operacional:
+
+1. documentos sao a fonte principal de verdade
+2. historico da conversa so serve para resolver referencia, continuidade e foco
+3. resumo da conversa nao pode introduzir fatos novos
+4. se historico e documentos entrarem em conflito, vencem os documentos
+5. se a conversa sugerir algo nao sustentado pelos documentos, o modelo deve recusar
+
+## Escopo da memoria recomendada
+
+### Entra
+
+- memoria curta da conversa por sessao
+- persistencia no Supabase
+- resumo progressivo da conversa
+- historico recente de mensagens
+- botao ou acao clara de "nova conversa"
+- envio de `conversationId` no frontend
+- reuso do mesmo chat para multiplas perguntas relacionadas
+
+### Nao entra nesta fase
+
+- memoria longa entre usuarios diferentes
+- memoria sem limite
+- aprendizagem automatica fora do contexto da conversa
+- "perfil do usuario" persistente
+- recomendacao baseada em historico global
+- resumo sem rastreabilidade
+
+## Desenho recomendado
+
+### Estrategia de memoria hibrida
+
+Usar 3 camadas no backend:
+
+1. pergunta atual
+2. ultimas mensagens da conversa
+3. resumo curto consolidado da conversa
+
+Montagem recomendada do prompt:
+
+1. instrucoes do sistema
+2. modo de resposta selecionado pelo usuario
+3. resumo da conversa
+4. ultimas mensagens relevantes
+5. chunks recuperados dos documentos
+6. pergunta atual
+
+### Regra de prioridade no prompt
+
+O prompt deve deixar explicito:
+
+- use o historico apenas para entender referencia e continuidade
+- use os documentos como base da resposta
+- nao trate afirmacoes anteriores do assistente como prova factual
+- nunca prefira o historico sobre o contexto documental atual
+
+## Schema recomendado no Supabase
+
+### Tabela `conversations`
+
+Campos sugeridos:
+
+- `id` (uuid)
+- `title` (text, opcional)
+- `summary` (text, opcional)
+- `created_at` (timestamp)
+- `updated_at` (timestamp)
+
+### Tabela `conversation_messages`
+
+Campos sugeridos:
+
+- `id` (uuid)
+- `conversation_id` (uuid)
+- `role` (text) -> `user` | `assistant`
+- `content` (text)
+- `sources_json` (jsonb, opcional)
+- `created_at` (timestamp)
+
+### Indices sugeridos
+
+- indice por `conversation_id`
+- indice por `created_at`
+- opcionalmente ordenacao por `created_at desc` para leitura das ultimas mensagens
+
+## Regras de seguranca para o agente executor
+
+1. Nao misturar memoria conversacional com retrieval documental no mesmo service sem separacao clara.
+2. Nao montar prompt a partir de historico inteiro sem limite.
+3. Nao resumir a conversa com liberdade excessiva; o resumo deve ser conservador e rastreavel.
+4. Nao salvar mensagens sem vinculo a `conversation_id`.
+5. Nao quebrar o fluxo atual de perguntas sem conversa ativa.
+6. Nao remover a resposta sem memoria; deve existir fallback seguro.
+7. Nao deixar a ausencia de memoria quebrar o chat.
+8. Nao deixar o resumo carregar "fatos" nao sustentados pelos documentos.
+9. Nao salvar credenciais, dados sensiveis ou payloads desnecessarios nas mensagens.
+10. Nao alterar comportamento de exclusao de documentos sem revisar impacto no historico salvo.
+
+## Estrategia por fases
+
+### Fase A - Preparacao de schema e abstracao
+
+Objetivo:
+- criar as tabelas e services de conversa sem ligar ainda no fluxo principal
+
+Escopo:
+- SQL incremental
+- service de persistencia de conversa
+- funcoes de criar, carregar e atualizar conversa
+
+Validacao esperada:
+- backend consegue criar conversa e inserir mensagens de teste
+
+Bugs a procurar:
+- mensagens sem `conversation_id`
+- leitura fora de ordem
+- falha de integridade ao apagar conversa
+
+### Fase B - Persistencia da conversa no backend
+
+Objetivo:
+- permitir criar conversa, buscar historico recente e salvar novas mensagens
+
+Escopo:
+- `conversation.service.js`
+- rotas para criar conversa e carregar historico
+- persistencia das mensagens do usuario e do assistente
+
+Validacao esperada:
+- uma pergunta cria ou atualiza uma conversa existente
+- mensagens ficam recuperaveis em ordem cronologica
+
+Bugs a procurar:
+- duplicacao de mensagens
+- respostas salvas sem texto
+- perda de conversa entre requests
+
+### Fase C - Integracao minima com o frontend
+
+Objetivo:
+- enviar `conversationId` em cada pergunta e permitir "nova conversa"
+
+Escopo:
+- guardar `conversationId` no frontend
+- criar nova conversa automaticamente na primeira pergunta
+- acao clara de limpar/iniciar conversa
+
+Validacao esperada:
+- perguntas seguidas usam a mesma conversa
+- ao iniciar nova conversa, o contexto anterior deixa de influenciar a resposta
+
+Bugs a procurar:
+- frontend reaproveitando conversa errada
+- `conversationId` nulo sendo enviado de forma inconsistente
+- historico visual e backend divergindo
+
+### Fase D - Historico curto no prompt
+
+Objetivo:
+- enviar as ultimas mensagens ao modelo, com limite seguro
+
+Escopo:
+- incluir ultimas 4 a 8 mensagens no prompt
+- separar claramente historico e contexto documental
+- manter chunks como base principal
+
+Validacao esperada:
+- follow-ups simples melhoram sem degradar respostas diretas
+
+Bugs a procurar:
+- historico muito grande
+- perda de foco nos documentos
+- modelo respondendo com base na conversa anterior em vez dos chunks atuais
+
+### Fase E - Resumo progressivo da conversa
+
+Objetivo:
+- manter um resumo curto e conservador da sessao
+
+Escopo:
+- gerar/rescrever resumo a cada N mensagens ou ao final de cada rodada
+- limitar tamanho do resumo
+- registrar apenas fatos conversacionais uteis:
+  - assunto atual
+  - documentos em foco
+  - perguntas respondidas
+  - ambiguidades resolvidas
+
+Validacao esperada:
+- contexto se preserva mesmo quando o historico curto nao basta
+- prompt continua controlado em tamanho
+
+Bugs a procurar:
+- resumo inventando fatos
+- resumo contradizendo mensagens reais
+- resumo crescendo sem limite
+
+### Fase F - Endurecimento anti-alucinacao
+
+Objetivo:
+- reforcar no prompt a hierarquia entre memoria e documentos
+
+Escopo:
+- instrucoes especificas no `answer.service`
+- regras para desconsiderar memoria quando nao sustentada por documentos
+- comportamento claro em casos ambigos
+
+Validacao esperada:
+- memoria melhora follow-up sem soltar resposta fora dos documentos
+
+Bugs a procurar:
+- assistente citando memoria como prova
+- resposta herdando erro de uma rodada anterior
+- uso excessivo de contexto antigo
+
+### Fase G - UX final e validacao de regressao
+
+Objetivo:
+- deixar a feature usavel, controlada e observavel
+
+Escopo:
+- botao de nova conversa
+- opcionalmente lista de conversas depois, mas nao obrigatorio nesta fase
+- logs atualizados
+- README e plano atualizados
+
+Validacao esperada:
+- usuario entende quando esta continuando a conversa atual
+- nova conversa limpa o contexto corretamente
+
+Bugs a procurar:
+- UI mostrando conversa limpa enquanto backend reaproveita contexto
+- reload da pagina perdendo estado de forma inesperada
+- historico visual diferente do historico real salvo
+
+## Ordem recomendada de execucao
+
+1. Criar schema incremental no Supabase
+2. Criar service de conversa no backend
+3. Criar endpoints minimos de conversa
+4. Integrar `conversationId` no frontend
+5. Persistir mensagens
+6. Incluir historico curto no prompt
+7. Implementar resumo progressivo
+8. Endurecer prompt anti-alucinacao
+9. Adicionar "nova conversa"
+10. Fazer testes de regressao
+11. Atualizar documentacao e logs
+
+## Checklist detalhado de implementacao
+
+- [ ] Definir schema de `conversations`
+- [ ] Definir schema de `conversation_messages`
+- [ ] Criar SQL incremental seguro
+- [ ] Criar service dedicado para conversa
+- [ ] Criar funcao para criar conversa
+- [ ] Criar funcao para carregar conversa por ID
+- [ ] Criar funcao para listar ultimas mensagens
+- [ ] Criar funcao para salvar mensagem do usuario
+- [ ] Criar funcao para salvar mensagem do assistente
+- [ ] Criar funcao para atualizar `updated_at` da conversa
+- [ ] Criar estrutura para `summary`
+- [ ] Definir limite maximo de mensagens recentes no prompt
+- [ ] Definir limite maximo de tamanho do resumo
+- [ ] Ajustar `ask.controller` para aceitar `conversationId`
+- [ ] Ajustar `answer.service` para montar prompt com memoria
+- [ ] Garantir separacao visual/semantica entre:
+  - resumo da conversa
+  - historico recente
+  - contexto dos documentos
+- [ ] Garantir fallback quando nao houver conversa
+- [ ] Garantir fallback quando nao houver resumo
+- [ ] Garantir fallback quando o resumo falhar
+- [ ] Definir gatilho de atualizacao do resumo
+- [ ] Garantir que o resumo nao seja atualizado em caso de erro de resposta
+- [ ] Persistir `conversationId` no frontend
+- [ ] Criar acao de "nova conversa"
+- [ ] Limpar o estado local ao iniciar nova conversa
+- [ ] Confirmar que follow-up funciona com a mesma conversa
+- [ ] Confirmar que follow-up nao vaza para nova conversa
+- [ ] Testar com documentos reais
+- [ ] Atualizar README
+- [ ] Atualizar este plano com logs de execucao
+
+## Checklist de validacao por etapa
+
+### Validacao do usuario - Etapa 1
+
+Escopo:
+- schema criado
+- backend criando conversas e mensagens
+
+Como testar:
+- criar uma conversa
+- enviar uma pergunta com `conversationId`
+- verificar se as mensagens foram salvas no banco
+
+Bugs a procurar:
+- mensagens fora de ordem
+- conversa nao encontrada
+- erro de integridade no Supabase
+
+### Validacao do usuario - Etapa 2
+
+Escopo:
+- frontend envia e reaproveita `conversationId`
+
+Como testar:
+- fazer duas perguntas em sequencia
+- confirmar que o backend usa a mesma conversa
+- iniciar nova conversa e repetir
+
+Bugs a procurar:
+- segunda pergunta indo para outra conversa
+- nova conversa herdando memoria antiga
+- refresh da pagina gerando comportamento incoerente
+
+### Validacao do usuario - Etapa 3
+
+Escopo:
+- historico curto embutido no prompt
+
+Como testar:
+- perguntar algo
+- fazer follow-up curto como "e qual a data?" ou "resuma melhor isso"
+- conferir se o sistema entende a referencia
+
+Bugs a procurar:
+- follow-up respondido sem base nos documentos
+- assistente preso demais na rodada anterior
+- piora em perguntas independentes
+
+### Validacao do usuario - Etapa 4
+
+Escopo:
+- resumo progressivo ativo
+
+Como testar:
+- conduzir conversa com varias trocas
+- conferir se referencias antigas ainda funcionam
+- testar tambem pergunta nova e nao relacionada
+
+Bugs a procurar:
+- resumo inventando fatos
+- conversa ficando "viciada" em um topico antigo
+- perda de foco nos chunks atuais
+
+### Validacao do usuario - Etapa 5
+
+Escopo:
+- endurecimento final e regressao
+
+Como testar:
+- perguntar algo diretamente presente no documento
+- perguntar algo parcialmente suportado
+- perguntar algo ausente
+- fazer follow-up ambiguo
+- iniciar nova conversa
+
+Bugs a procurar:
+- alucinacao por memoria
+- documento sendo ignorado em favor da conversa
+- contexto antigo contaminando conversa nova
+
+## Testes de regressao obrigatorios
+
+- [ ] Upload continua funcionando
+- [ ] Indexacao continua funcionando
+- [ ] Listagem de documentos continua funcionando
+- [ ] Exclusao de documentos continua funcionando
+- [ ] Busca textual continua funcionando
+- [ ] Busca vetorial continua funcionando
+- [ ] Modo de resposta `Conservadora` continua conservador
+- [ ] Modo de resposta `Equilibrada` continua intermediario
+- [ ] Modo de resposta `Flexivel` continua controlado
+- [ ] Pergunta sem `conversationId` continua funcionando
+- [ ] Pergunta com `conversationId` funciona com continuidade
+- [ ] Nova conversa realmente limpa o contexto
+
+## Casos de teste recomendados
+
+### Caso 1 - Pergunta direta
+
+- Usuario: "Qual a data do recibo?"
+- Esperado: resposta baseada apenas nos chunks relevantes
+
+### Caso 2 - Follow-up curto
+
+- Usuario: "Qual a data do recibo?"
+- Usuario: "E o valor?"
+- Esperado: segunda pergunta reaproveita o foco do documento e da pergunta anterior
+
+### Caso 3 - Follow-up ambiguo
+
+- Usuario: "Qual a data do recibo?"
+- Usuario: "E esse documento?"
+- Esperado: assistente usa memoria curta para entender referencia, mas ancora a resposta nos documentos
+
+### Caso 4 - Mudanca de assunto na mesma conversa
+
+- Usuario: pergunta sobre documento A
+- Usuario: pergunta sobre documento B
+- Esperado: sistema acompanha a mudanca com base no retrieval atual
+
+### Caso 5 - Nova conversa
+
+- Usuario: conversa longa sobre documento A
+- Usuario: inicia nova conversa
+- Usuario: pergunta generica
+- Esperado: nenhum contexto anterior influencia a resposta
+
+## Decisoes recomendadas antes de codar
+
+- persistir memoria no Supabase, nao so em memoria RAM
+- usar resumo curto e conservador
+- limitar historico recente por quantidade e tamanho
+- deixar a memoria ligada por conversa, nao global
+- implementar "nova conversa" antes de considerar lista de conversas
+- manter documentos acima da memoria na hierarquia do prompt
+
+## Arquivos provavelmente envolvidos
+
+### Backend
+
+- `backend/src/controllers/ask.controller.js`
+- `backend/src/services/answer.service.js`
+- `backend/src/services/retrieval.service.js`
+- `backend/src/services/vectorStore.service.js`
+- novo `backend/src/services/conversation.service.js`
+- possivelmente novas rotas para conversa
+- SQL incremental em `docs/sql/` ou equivalente
+
+### Frontend
+
+- `frontend/app.js`
+- `frontend/index.html`
+- `frontend/style.css`
+
+### Documentacao
+
+- `README.md`
+- `plano-mvp-rag-v1.0.md`
+
+## Modelo de log especifico desta feature
+
+```txt
+[LOG MEM XX]
+Data:
+Agente:
+Fase:
+Escopo:
+Objetivo:
+Arquivos criados:
+Arquivos alterados:
+Dependencias instaladas:
+Comandos executados:
+Validacao executada:
+Resultado:
+Como testar:
+Bugs procurados:
+Pendencias:
+Proximo passo:
+Observacoes:
+```
+
+## Area de logs reservada para esta implementacao
+
+```txt
+[LOG MEM 00]
+Data: 2026-04-06
+Agente: Codex
+Fase: Planejamento da memoria conversacional controlada
+Escopo: definir estrategia segura de memoria curta + resumo para o chat RAG
+Objetivo: preparar um plano executavel por etapas, com validacao do usuario, regressao e controle de alucinacao
+Arquivos criados: nenhum
+Arquivos alterados:
+- plano-mvp-rag-v1.0.md
+Dependencias instaladas: nenhuma
+Comandos executados:
+- leitura do plano atual
+- edicao do plano
+Validacao executada:
+- revisao estrutural do plano
+- alinhamento com a arquitetura atual do projeto
+Resultado:
+- plano detalhado de memoria conversacional adicionado
+- estrategia definida com prioridade documental, historico curto e resumo conservador
+Como testar:
+- nao se aplica nesta etapa; apenas planejamento
+Bugs procurados:
+- nao se aplica nesta etapa; apenas planejamento
+Pendencias:
+- implementacao tecnica ainda nao iniciada
+Proximo passo:
+- iniciar Fase A com schema de conversa e service dedicado
+Observacoes:
+- a memoria deve melhorar continuidade sem competir com o contexto dos documentos
+```
