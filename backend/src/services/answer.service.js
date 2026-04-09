@@ -57,7 +57,16 @@ ${getModeInstruction(mode)}
 Regras de continuidade:
 - Use o HISTORICO DA CONVERSA apenas para resolver referencias (ex.: "isso", "com que objetivo?", "e quanto a isso?").
 - A base factual da resposta deve continuar sendo o CONTEXTO DOS DOCUMENTOS recuperado nesta rodada.
-- Se historico e contexto documental divergirem, priorize o contexto documental atual.`;
+- Se historico e contexto documental divergirem, priorize o contexto documental atual.
+
+Regras de estilo da resposta:
+- Seja direto e evite preambulos (nao use frases como "Com base no contexto fornecido", "Podemos ver que", "Portanto, a resposta e").
+- Quando a informacao estiver literal e clara no contexto, responda de forma categorica e objetiva.
+- Quando houver inferencia, sinalize explicitamente com "Inferencia:" em uma unica frase curta.
+- Nao repita a pergunta do usuario na resposta.
+- Evite redundancia e texto de enchimento.
+- Estruture em lista numerada apenas quando a pergunta pedir multiplos itens.
+- Quando relevante, cite a fonte em uma frase curta: "Segundo <documento>, ...".`;
 }
 
 function buildConversationHistoryBlock(conversationHistory) {
