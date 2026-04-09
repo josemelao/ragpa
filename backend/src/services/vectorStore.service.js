@@ -113,6 +113,44 @@ async function searchChunksByText(question, limit = 8) {
   }));
 }
 
+async function searchChunksByDocumentIds(documentIds, limit = 8) {
+  const supabase = getSupabaseClient();
+  const ids = (documentIds || []).filter(Boolean);
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('document_chunks')
+    .select(`
+      id,
+      document_id,
+      chunk_index,
+      content,
+      documents!inner (
+        original_name,
+        filename
+      )
+    `)
+    .in('document_id', ids)
+    .order('chunk_index', { ascending: true })
+    .limit(limit);
+
+  if (error) throw new Error(`Erro na busca por documento: ${error.message}`);
+
+  return (data || []).map((row) => ({
+    id: row.id,
+    document_id: row.document_id,
+    chunk_index: row.chunk_index,
+    content: row.content,
+    original_name: row.documents?.original_name || null,
+    filename: row.documents?.filename || null,
+    similarity: 1,
+    match_type: 'document',
+  }));
+}
+
 async function listDocuments() {
   const supabase = getSupabaseClient();
 
@@ -154,5 +192,6 @@ module.exports = {
   saveChunks,
   searchSimilarChunks,
   searchChunksByText,
+  searchChunksByDocumentIds,
   listDocuments,
 };

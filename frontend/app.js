@@ -11,6 +11,7 @@ const uploadStatus = document.getElementById('upload-status');
 
 const questionInput = document.getElementById('question-input');
 const askBtn = document.getElementById('ask-btn');
+const newConversationBtn = document.getElementById('new-conversation-btn');
 
 const chatArea = document.getElementById('chat-area');
 const chatEmpty = document.getElementById('chat-empty');
@@ -22,6 +23,7 @@ const toggleSources = document.getElementById('toggle-sources');
 const responseModeInputs = document.querySelectorAll('input[name="response-mode"]');
 
 const SETTINGS_KEY = 'docRagSettings';
+const CONVERSATION_KEY = 'docRagConversationId';
 const DEFAULT_RESPONSE_MODE = 'balanced';
 
 let selectedFile = null;
@@ -30,6 +32,7 @@ let isAsking = false;
 let isDeletingDocument = false;
 let showSources = true;
 let responseMode = DEFAULT_RESPONSE_MODE;
+let currentConversationId = null;
 
 browseBtn.addEventListener('click', () => fileInput.click());
 dropZone.addEventListener('click', (event) => {
@@ -59,6 +62,7 @@ uploadBtn.addEventListener('click', doUpload);
 refreshDocsBtn.addEventListener('click', loadDocuments);
 docList.addEventListener('click', handleDocListClick);
 askBtn.addEventListener('click', doAsk);
+newConversationBtn.addEventListener('click', handleNewConversation);
 settingsBtn.addEventListener('click', toggleSettingsPanel);
 toggleSources.addEventListener('change', handleToggleSources);
 responseModeInputs.forEach((input) => {
@@ -241,6 +245,7 @@ async function doAsk() {
       body: JSON.stringify({
         question,
         responseMode,
+        conversationId: currentConversationId,
       }),
     });
     const data = await response.json();
@@ -248,6 +253,10 @@ async function doAsk() {
     loadingElement.remove();
 
     if (!response.ok) throw new Error(data.error || 'Erro ao processar pergunta.');
+
+    if (data.conversationId) {
+      setConversationId(data.conversationId);
+    }
 
     appendAnswer(data.answer, data.sources || []);
   } catch (err) {
@@ -259,6 +268,12 @@ async function doAsk() {
     questionInput.disabled = false;
     questionInput.focus();
   }
+}
+
+function handleNewConversation() {
+  if (isAsking) return;
+  clearConversationId();
+  clearChatMessages();
 }
 
 function appendMessage(type, text) {
@@ -351,6 +366,16 @@ function hideChatEmpty() {
   if (chatEmpty) chatEmpty.style.display = 'none';
 }
 
+function showChatEmpty() {
+  if (chatEmpty) chatEmpty.style.display = 'flex';
+}
+
+function clearChatMessages() {
+  const messageNodes = chatArea.querySelectorAll('.message');
+  messageNodes.forEach((node) => node.remove());
+  showChatEmpty();
+}
+
 function scrollChatToBottom() {
   chatArea.scrollTop = chatArea.scrollHeight;
 }
@@ -387,6 +412,23 @@ function saveSettings() {
   );
 }
 
+function loadConversationState() {
+  const saved = localStorage.getItem(CONVERSATION_KEY);
+  if (saved && saved.trim()) {
+    currentConversationId = saved.trim();
+  }
+}
+
+function setConversationId(conversationId) {
+  currentConversationId = String(conversationId).trim();
+  localStorage.setItem(CONVERSATION_KEY, currentConversationId);
+}
+
+function clearConversationId() {
+  currentConversationId = null;
+  localStorage.removeItem(CONVERSATION_KEY);
+}
+
 function syncSettingsUI() {
   toggleSources.checked = showSources;
   responseModeInputs.forEach((input) => {
@@ -416,6 +458,7 @@ function normalizeResponseMode(value) {
 
 (function init() {
   loadSettings();
+  loadConversationState();
   syncSettingsUI();
   loadDocuments();
   askBtn.disabled = true;

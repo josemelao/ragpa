@@ -304,6 +304,20 @@ html, body {
 }
 .btn-primary:not(:disabled):hover { opacity: .88; }
 
+.btn-secondary {
+  background: var(--bg3);
+  color: var(--text2);
+  border: 1px solid var(--border);
+  width: auto;
+  padding: 10px 14px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-secondary:not(:disabled):hover {
+  background: var(--bg2);
+  color: var(--text);
+}
+
 .btn-ask {
   background: var(--accent);
   color: #fff;
