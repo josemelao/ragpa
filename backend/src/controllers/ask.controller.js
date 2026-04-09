@@ -47,7 +47,9 @@ function isExtractListQuestion(question) {
   const normalized = normalizeText(question);
   const hasExtractTerm = normalized.includes('extrato') || normalized.includes('ufpa');
   const hasListIntent = /\b(lista|listar|liste|mostre|quais)\b/.test(normalized);
-  return hasExtractTerm && hasListIntent;
+  const hasDetailTerms = /\b(composicao|familiar|familia|nomes|nome|pessoa|pessoas|conjuge|cpf|endereco|situacao|pronaf|validade|inscricao|data|membro|membros)\b/.test(normalized);
+  const hasSpecificUfpaCode = /\bgo\d{6}\.\d{2}\.\d{9}caf\b/i.test(normalized) || /\bgo\*+/.test(normalized);
+  return hasExtractTerm && hasListIntent && !hasDetailTerms && !hasSpecificUfpaCode;
 }
 
 function isGenericListQuestion(question) {
@@ -154,6 +156,8 @@ function normalizeQuestionTypos(question) {
     .replace(/\bqtas\b/gi, 'quantas')
     .replace(/\bqto\b/gi, 'quanto')
     .replace(/\bqtos\b/gi, 'quantos')
+    .replace(/\bextrats\b/gi, 'extratos')
+    .replace(/\bextrat\b/gi, 'extrato')
     .trim();
 }
 
