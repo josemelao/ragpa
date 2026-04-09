@@ -50,7 +50,7 @@ function isExtractListQuestion(question) {
   return hasExtractTerm && hasListIntent;
 }
 
-function isGenericListFollowUp(question) {
+function isGenericListQuestion(question) {
   const normalized = normalizeText(question);
   const terms = normalized.match(/[a-z0-9_-]{2,}/g) || [];
   const hasListIntent = /\b(lista|listar|liste|mostre|todos|todas)\b/.test(normalized);
@@ -59,20 +59,30 @@ function isGenericListFollowUp(question) {
   return hasListIntent && isShortGeneric && !hasDetailTerms;
 }
 
-function shouldTreatAsExtractListFollowUp(question, messages) {
-  if (!isGenericListFollowUp(question)) {
-    return false;
+function inferContextListAction(messages) {
+  const recent = [...(messages || [])].reverse().slice(0, 8);
+  const joined = recent.map((msg) => normalizeText(msg.content || '')).join('\n');
+
+  const hasDocumentInventoryCue =
+    joined.includes('documentos indexados') || joined.includes('arquivos indexados');
+  const hasExtractCue = joined.includes('extrato') || joined.includes('ufpa');
+  const hasContentSources = recent.some(
+    (msg) => msg.role === 'assistant' && Array.isArray(msg.sources_json) && msg.sources_json.length > 0
+  );
+
+  if (hasContentSources && !hasDocumentInventoryCue) {
+    return 'document_content';
   }
 
-  const recent = [...(messages || [])].reverse().slice(0, 6);
-  return recent.some((msg) => {
-    const text = normalizeText(msg.content || '');
-    return (
-      text.includes('extratos indexados') ||
-      text.includes('extrato') ||
-      text.includes('ufpa')
-    );
-  });
+  if (hasExtractCue) {
+    return 'extract_inventory';
+  }
+
+  if (hasDocumentInventoryCue) {
+    return 'document_inventory';
+  }
+
+  return 'document_inventory';
 }
 
 function getIndexedExtractDocuments(documents) {
@@ -340,7 +350,7 @@ async function handleAsk(req, res) {
   }
 
   const trimmedQuestion = question.trim();
-  const normalizedQuestion = normalizeQuestionTypos(trimmedQuestion);
+  let normalizedQuestion = normalizeQuestionTypos(trimmedQuestion);
   logger.info(`Pergunta recebida: "${trimmedQuestion.slice(0, 80)}"`);
 
   try {
@@ -389,10 +399,7 @@ async function handleAsk(req, res) {
       });
     }
 
-    if (
-      isExtractListQuestion(normalizedQuestion) ||
-      shouldTreatAsExtractListFollowUp(normalizedQuestion, conversationMessages)
-    ) {
+    if (isExtractListQuestion(normalizedQuestion)) {
       const answer = buildExtractListAnswer(getIndexedExtractDocuments(documents));
 
       await saveConversationMessage({
@@ -407,6 +414,48 @@ async function handleAsk(req, res) {
         sources: [],
         conversationId,
       });
+    }
+
+    if (isGenericListQuestion(normalizedQuestion)) {
+      const listAction = inferContextListAction(conversationMessages);
+
+      if (listAction === 'extract_inventory') {
+        const answer = buildExtractListAnswer(getIndexedExtractDocuments(documents));
+
+        await saveConversationMessage({
+          conversationId,
+          role: 'assistant',
+          content: answer,
+          sourcesJson: [],
+        });
+
+        return res.json({
+          answer,
+          sources: [],
+          conversationId,
+        });
+      }
+
+      if (listAction === 'document_inventory') {
+        const answer = buildDocumentListAnswer(documents);
+
+        await saveConversationMessage({
+          conversationId,
+          role: 'assistant',
+          content: answer,
+          sourcesJson: [],
+        });
+
+        return res.json({
+          answer,
+          sources: [],
+          conversationId,
+        });
+      }
+
+      if (listAction === 'document_content') {
+        normalizedQuestion = 'Liste de forma objetiva as informacoes relevantes dos documentos em foco na conversa atual.';
+      }
     }
 
     const retrievalQuestion = buildRetrievalQuestion(normalizedQuestion, conversationMessages);
