@@ -1409,10 +1409,10 @@ Bugs a procurar:
 - [x] Criar funcao para salvar mensagem do assistente
 - [x] Criar funcao para atualizar `updated_at` da conversa
 - [x] Criar estrutura para `summary`
-- [ ] Definir limite maximo de mensagens recentes no prompt
+- [x] Definir limite maximo de mensagens recentes no prompt
 - [ ] Definir limite maximo de tamanho do resumo
-- [ ] Ajustar `ask.controller` para aceitar `conversationId`
-- [ ] Ajustar `answer.service` para montar prompt com memoria
+- [x] Ajustar `ask.controller` para aceitar `conversationId`
+- [x] Ajustar `answer.service` para montar prompt com memoria
 - [ ] Garantir separacao visual/semantica entre:
   - resumo da conversa
   - historico recente
@@ -1422,9 +1422,9 @@ Bugs a procurar:
 - [ ] Garantir fallback quando o resumo falhar
 - [ ] Definir gatilho de atualizacao do resumo
 - [ ] Garantir que o resumo nao seja atualizado em caso de erro de resposta
-- [ ] Persistir `conversationId` no frontend
-- [ ] Criar acao de "nova conversa"
-- [ ] Limpar o estado local ao iniciar nova conversa
+- [x] Persistir `conversationId` no frontend
+- [x] Criar acao de "nova conversa"
+- [x] Limpar o estado local ao iniciar nova conversa
 - [ ] Confirmar que follow-up funciona com a mesma conversa
 - [ ] Confirmar que follow-up nao vaza para nova conversa
 - [ ] Testar com documentos reais
@@ -1721,4 +1721,97 @@ Proximo passo:
 - iniciar Fase B/C com integracao de `conversationId` em backend e frontend
 Observacoes:
 - esta etapa nao altera a resposta do chat atual; apenas prepara infraestrutura para continuidade
+```
+
+```txt
+[LOG MEM 02]
+Data: 2026-04-09
+Agente: Codex
+Fase: Memoria conversacional - Fase B/C (integracao backend/frontend)
+Escopo: integrar `conversationId` no fluxo de perguntas e habilitar controle de conversa no frontend
+Objetivo: persistir mensagens por conversa e permitir iniciar nova conversa sem reaproveitar contexto antigo
+Arquivos criados: nenhum
+Arquivos alterados:
+- backend/src/controllers/ask.controller.js
+- frontend/index.html
+- frontend/app.js
+- frontend/style.css
+- plano-mvp-rag-v1.0.md
+Dependencias instaladas: nenhuma
+Comandos executados:
+- leitura dos arquivos de rota/controller/frontend
+- validacao com `node --check`
+Validacao executada:
+- checagem de sintaxe de `ask.controller.js` e `frontend/app.js`
+- confirmacao de envio/recebimento de `conversationId` no fluxo
+Resultado:
+- `/api/ask` passou a aceitar `conversationId` opcional
+- quando `conversationId` nao e enviado, o backend cria conversa automaticamente
+- mensagens `user` e `assistant` passam a ser persistidas em `conversation_messages`
+- resposta de `/api/ask` retorna `conversationId`
+- frontend passou a persistir `conversationId` em `localStorage`
+- frontend ganhou botao "Nova conversa" que limpa contexto local e mensagens visiveis
+Como testar:
+- fazer pergunta sem `conversationId` e verificar retorno com `conversationId`
+- fazer segunda pergunta e confirmar continuidade com mesmo `conversationId`
+- clicar "Nova conversa" e confirmar novo `conversationId` na proxima pergunta
+Bugs procurados:
+- conversa inexistente enviada pelo cliente
+- perda de estado local apos refresh
+- reaproveitamento indevido de conversa apos "Nova conversa"
+Pendencias:
+- integrar historico curto e resumo no prompt (`answer.service`)
+- validar follow-up com documentos reais e atualizar checklist de regressao
+Proximo passo:
+- Fase D/E: enviar ultimas mensagens e resumo para o prompt com limites de tamanho
+Observacoes:
+- a feature ja persiste conversa, mas ainda nao usa historico na geracao da resposta
+```
+
+```txt
+[LOG MEM 03]
+Data: 2026-04-09
+Agente: Codex
+Fase: Memoria conversacional - robustez de continuidade (retrieval + prompt)
+Escopo: reduzir perda de contexto em follow-ups curtos e perguntas por referencia de documento
+Objetivo: melhorar continuidade sem abrir mao da regra de resposta baseada em documentos
+Arquivos criados: nenhum
+Arquivos alterados:
+- backend/src/controllers/ask.controller.js
+- backend/src/services/retrieval.service.js
+- backend/src/services/vectorStore.service.js
+- backend/src/services/answer.service.js
+- plano-mvp-rag-v1.0.md
+Dependencias instaladas: nenhuma
+Comandos executados:
+- ajustes iterativos no fluxo de pergunta
+- validacoes locais com `node --check`
+- testes manuais de perguntas sequenciais com documentos reais
+Validacao executada:
+- tratamento de `conversationId` invalido com criacao automatica de nova conversa
+- continuidade de retrieval para follow-up curto
+- priorizacao de documento citado no texto da pergunta
+- envio de historico curto da conversa para o prompt de resposta
+Resultado:
+- backend passou a evitar erro bloqueante por `conversationId` invalido
+- retrieval passou a combinar vetor+texto+nome de documento e priorizacao de documento previamente citado
+- fontes passaram a carregar `documentId` para ancoragem de follow-up
+- `answer.service` passou a montar prompt com bloco de historico recente (limite curto) e regras de continuidade
+Como testar:
+- "quais documentos estao indexados"
+- "oficio 55 fala sobre o que"
+- "com que objetivo?"
+- "o trator que a secretaria solicitou tem quantas linhas"
+Bugs procurados:
+- retorno "nao encontrei" com documento claramente indexado
+- perda de referencia em perguntas curtas de continuidade
+- erro de conversa por id inexistente
+Pendencias:
+- implementar resumo progressivo de conversa (`summary`) e limites dedicados para esse bloco
+- endurecer heuristica para follow-up ambiguo em cenarios com varios documentos semelhantes
+- rodar checklist formal de regressao de memoria (secao de testes obrigatorios)
+Proximo passo:
+- Fase E/F: resumo progressivo + regras anti-alucinacao com prioridade documental explicita
+Observacoes:
+- houve melhora pratica de continuidade, mas o comportamento ainda nao esta 100% estavel em todas as formulacoes curtas
 ```
