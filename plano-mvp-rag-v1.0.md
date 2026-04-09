@@ -1410,17 +1410,17 @@ Bugs a procurar:
 - [x] Criar funcao para atualizar `updated_at` da conversa
 - [x] Criar estrutura para `summary`
 - [x] Definir limite maximo de mensagens recentes no prompt
-- [ ] Definir limite maximo de tamanho do resumo
+- [x] Definir limite maximo de tamanho do resumo
 - [x] Ajustar `ask.controller` para aceitar `conversationId`
 - [x] Ajustar `answer.service` para montar prompt com memoria
-- [ ] Garantir separacao visual/semantica entre:
+- [x] Garantir separacao visual/semantica entre:
   - resumo da conversa
   - historico recente
   - contexto dos documentos
-- [ ] Garantir fallback quando nao houver conversa
-- [ ] Garantir fallback quando nao houver resumo
-- [ ] Garantir fallback quando o resumo falhar
-- [ ] Definir gatilho de atualizacao do resumo
+- [x] Garantir fallback quando nao houver conversa
+- [x] Garantir fallback quando nao houver resumo
+- [x] Garantir fallback quando o resumo falhar
+- [x] Definir gatilho de atualizacao do resumo
 - [ ] Garantir que o resumo nao seja atualizado em caso de erro de resposta
 - [x] Persistir `conversationId` no frontend
 - [x] Criar acao de "nova conversa"
@@ -1814,4 +1814,44 @@ Proximo passo:
 - Fase E/F: resumo progressivo + regras anti-alucinacao com prioridade documental explicita
 Observacoes:
 - houve melhora pratica de continuidade, mas o comportamento ainda nao esta 100% estavel em todas as formulacoes curtas
+```
+
+```txt
+[LOG MEM 04]
+Data: 2026-04-09
+Agente: Codex
+Fase: Memoria conversacional - resumo progressivo e prompt estruturado
+Escopo: consolidar resumo curto da conversa e usar no prompt junto ao historico recente
+Objetivo: melhorar continuidade em follow-up sem perder prioridade documental
+Arquivos criados: nenhum
+Arquivos alterados:
+- backend/src/controllers/ask.controller.js
+- backend/src/services/answer.service.js
+- plano-mvp-rag-v1.0.md
+Dependencias instaladas: nenhuma
+Comandos executados:
+- ajuste de controller e service de resposta
+- validacao com `node --check`
+Validacao executada:
+- resumo curto passou a ser recalculado e salvo em `conversations.summary` apos resposta do assistente
+- prompt passou a conter blocos separados: resumo, historico e contexto documental
+- fallback para ausencia de resumo/historico e falha de atualizacao do resumo
+Resultado:
+- limite de historico recente e limite de tamanho do resumo definidos no backend
+- gatilho de atualizacao de resumo implementado por rodada de resposta
+- continuidade melhor estruturada para perguntas referenciais
+Como testar:
+- iniciar conversa sobre um documento
+- fazer follow-ups curtos ("com que objetivo?", "e quantas linhas?")
+- verificar se a resposta preserva o assunto sem exigir repeticao completa
+Bugs procurados:
+- perda de contexto em perguntas curtas
+- atualizacao de resumo causando erro na resposta principal
+Pendencias:
+- refinar ainda mais heuristica de follow-up ambiguo entre documentos semelhantes
+- executar checklist formal de regressao da memoria (secao 1516+)
+Proximo passo:
+- rodar bateria de testes de regressao e calibrar thresholds de retrieval/follow-up
+Observacoes:
+- resumo atual e conservador e derivado das ultimas mensagens; nao usa LLM dedicado para sumarizacao nesta fase
 ```

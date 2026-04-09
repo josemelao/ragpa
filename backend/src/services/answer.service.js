@@ -75,8 +75,18 @@ function buildConversationHistoryBlock(conversationHistory) {
   return `HISTORICO DA CONVERSA:\n${lines}`;
 }
 
+function buildConversationSummaryBlock(conversationSummary) {
+  const summary = String(conversationSummary || '').trim();
+  if (!summary) {
+    return 'RESUMO DA CONVERSA:\n(sem resumo consolidado)';
+  }
+
+  return `RESUMO DA CONVERSA:\n${summary}`;
+}
+
 function buildPrompt(question, chunks, options = {}) {
   const conversationHistory = options.conversationHistory || [];
+  const conversationSummary = options.conversationSummary || '';
   const contextBlocks = chunks
     .map((c, i) => {
       const source = c.original_name || c.filename || 'documento';
@@ -84,7 +94,11 @@ function buildPrompt(question, chunks, options = {}) {
     })
     .join('\n\n---\n\n');
 
-  return `${buildConversationHistoryBlock(conversationHistory)}
+  return `${buildConversationSummaryBlock(conversationSummary)}
+
+---
+
+${buildConversationHistoryBlock(conversationHistory)}
 
 ---
 

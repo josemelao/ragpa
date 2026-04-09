@@ -6,8 +6,11 @@ const {
   getConversationById,
   listConversationMessages,
   saveConversationMessage,
+  updateConversationSummary,
 } = require('../services/conversation.service');
 const logger = require('../utils/logger');
+const MAX_HISTORY_MESSAGES = 6;
+const SUMMARY_MAX_CHARS = 1200;
 
 function isDocumentListQuestion(question) {
   const normalized = question
@@ -154,12 +157,37 @@ function buildConversationHistoryForPrompt(messages, currentQuestion) {
   }
 
   return history
-    .slice(-6)
+    .slice(-MAX_HISTORY_MESSAGES)
     .map((msg) => ({
       role: msg.role,
       content: String(msg.content || '').trim().slice(0, 500),
     }))
     .filter((msg) => msg.content.length > 0);
+}
+
+function buildConversationSummary(messages) {
+  const history = Array.isArray(messages) ? messages.slice(-10) : [];
+  if (history.length === 0) return null;
+
+  const lastUserMessage = [...history].reverse().find((msg) => msg.role === 'user' && msg.content);
+  const lastAssistantMessage = [...history].reverse().find((msg) => msg.role === 'assistant' && msg.content);
+
+  const focusedDocs = [...new Set(
+    history
+      .filter((msg) => msg.role === 'assistant' && Array.isArray(msg.sources_json))
+      .flatMap((msg) => msg.sources_json.map((source) => source?.filename))
+      .filter(Boolean)
+  )].slice(0, 4);
+
+  const lines = [
+    lastUserMessage ? `Assunto atual: ${String(lastUserMessage.content).slice(0, 220)}` : null,
+    focusedDocs.length > 0 ? `Documentos em foco: ${focusedDocs.join(', ')}` : null,
+    lastAssistantMessage ? `Ultima resposta util: ${String(lastAssistantMessage.content).slice(0, 320)}` : null,
+  ].filter(Boolean);
+
+  if (lines.length === 0) return null;
+
+  return lines.join('\n').slice(0, SUMMARY_MAX_CHARS);
 }
 
 async function resolveConversationId(rawConversationId, question) {
@@ -202,6 +230,7 @@ async function handleAsk(req, res) {
       content: trimmedQuestion,
     });
 
+    const conversation = await getConversationById(conversationId);
     const conversationMessages = await listConversationMessages(conversationId, { limit: 20 });
 
     if (isDocumentListQuestion(trimmedQuestion)) {
@@ -261,6 +290,7 @@ async function handleAsk(req, res) {
     );
     const answer = await generateAnswer(trimmedQuestion, chunks, responseMode, {
       conversationHistory,
+      conversationSummary: conversation?.summary || null,
     });
 
     const sources = chunks.map((c) => ({
@@ -278,6 +308,16 @@ async function handleAsk(req, res) {
       content: answer,
       sourcesJson: sources,
     });
+
+    try {
+      const latestMessages = await listConversationMessages(conversationId, { limit: 20 });
+      const summary = buildConversationSummary(latestMessages);
+      if (summary) {
+        await updateConversationSummary(conversationId, summary);
+      }
+    } catch (summaryError) {
+      logger.warn(`Falha ao atualizar resumo da conversa ${conversationId}: ${summaryError.message}`);
+    }
 
     return res.json({ answer, sources, conversationId });
   } catch (err) {
