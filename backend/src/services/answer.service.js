@@ -52,10 +52,31 @@ function getModeInstruction(mode) {
 function getSystemPrompt(mode) {
   return `${getBaseSystemPrompt()}
 
-${getModeInstruction(mode)}`;
+${getModeInstruction(mode)}
+
+Regras de continuidade:
+- Use o HISTORICO DA CONVERSA apenas para resolver referencias (ex.: "isso", "com que objetivo?", "e quanto a isso?").
+- A base factual da resposta deve continuar sendo o CONTEXTO DOS DOCUMENTOS recuperado nesta rodada.
+- Se historico e contexto documental divergirem, priorize o contexto documental atual.`;
 }
 
-function buildPrompt(question, chunks) {
+function buildConversationHistoryBlock(conversationHistory) {
+  if (!Array.isArray(conversationHistory) || conversationHistory.length === 0) {
+    return 'HISTORICO DA CONVERSA:\n(sem historico relevante)';
+  }
+
+  const lines = conversationHistory
+    .map((msg) => {
+      const role = msg.role === 'assistant' ? 'ASSISTENTE' : 'USUARIO';
+      return `- ${role}: ${msg.content}`;
+    })
+    .join('\n');
+
+  return `HISTORICO DA CONVERSA:\n${lines}`;
+}
+
+function buildPrompt(question, chunks, options = {}) {
+  const conversationHistory = options.conversationHistory || [];
   const contextBlocks = chunks
     .map((c, i) => {
       const source = c.original_name || c.filename || 'documento';
@@ -63,20 +84,24 @@ function buildPrompt(question, chunks) {
     })
     .join('\n\n---\n\n');
 
-  return `CONTEXTO DOS DOCUMENTOS:
+  return `${buildConversationHistoryBlock(conversationHistory)}
+
+---
+
+CONTEXTO DOS DOCUMENTOS:
 ${contextBlocks}
 
 ---
 
-PERGUNTA DO USUARIO:
+PERGUNTA ATUAL DO USUARIO:
 ${question}`;
 }
 
-async function generateAnswer(question, chunks, responseMode) {
+async function generateAnswer(question, chunks, responseMode, options = {}) {
   const provider = config.providers.llm;
 
-  if (provider === 'gemini') return callGemini(question, chunks, responseMode);
-  if (provider === 'groq')   return callGroq(question, chunks, responseMode);
+  if (provider === 'gemini') return callGemini(question, chunks, responseMode, options);
+  if (provider === 'groq')   return callGroq(question, chunks, responseMode, options);
 
   throw new Error(`Provedor de LLM nao suportado: ${provider}`);
 }
@@ -84,14 +109,14 @@ async function generateAnswer(question, chunks, responseMode) {
 // ---------------------------------------------------------------------------
 // Gemini
 // ---------------------------------------------------------------------------
-async function callGemini(question, chunks, responseMode) {
+async function callGemini(question, chunks, responseMode, options = {}) {
   if (!config.google.apiKey) {
     throw new Error('GOOGLE_API_KEY nao configurada. Preencha o .env');
   }
 
   const mode = normalizeResponseMode(responseMode);
   const systemPrompt = getSystemPrompt(mode);
-  const userPrompt = `${systemPrompt}\n\n${buildPrompt(question, chunks)}`;
+  const userPrompt = `${systemPrompt}\n\n${buildPrompt(question, chunks, options)}`;
 
   const model = process.env.GEMINI_LLM_MODEL || 'gemini-2.0-flash';
   const apiVersion = process.env.GEMINI_API_VERSION || 'v1beta';
@@ -127,13 +152,13 @@ async function callGemini(question, chunks, responseMode) {
 // ---------------------------------------------------------------------------
 // Groq
 // ---------------------------------------------------------------------------
-async function callGroq(question, chunks, responseMode) {
+async function callGroq(question, chunks, responseMode, options = {}) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('GROQ_API_KEY nao configurada. Preencha o .env');
 
   const mode = normalizeResponseMode(responseMode);
   const systemPrompt = getSystemPrompt(mode);
-  const userPrompt = buildPrompt(question, chunks);
+  const userPrompt = buildPrompt(question, chunks, options);
 
   const model = process.env.GROQ_LLM_MODEL || 'llama-3.1-8b-instant';
   const url = 'https://api.groq.com/openai/v1/chat/completions';
