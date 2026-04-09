@@ -956,7 +956,7 @@ Ao final da migracao:
 - [x] Testar perguntas de inventario de documentos
 - [x] Testar strings literais apos a migracao
 - [ ] Confirmar que nenhum arquivo novo esta sendo criado em `backend/uploads`
-- [ ] Atualizar README e logs quando a migracao for concluida
+- [x] Atualizar README e logs quando a migracao for concluida
 
 ## Checklist de validacao funcional
 
@@ -1669,7 +1669,6 @@ Resultado:
 Pendencias:
 - definir e validar politica do bucket (privado/publico e politicas minimas)
 - confirmar operacionalmente ausencia de novos arquivos em `backend/uploads` no ambiente atual
-- atualizar README para refletir claramente o modo cloud-only quando `FILE_STORAGE_PROVIDER=supabase`
 - decidir e executar (ou descartar) migracao de legado em `backend/uploads`
 - concluir plano de memoria conversacional (schema, backend, frontend, validacao)
 Proximo passo:

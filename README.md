@@ -11,7 +11,7 @@ Webapp pessoal de RAG (Retrieval-Augmented Generation) para upload, indexacao e 
 | Banco vetorial | Supabase (PostgreSQL + pgvector) |
 | Embeddings | Google Gemini `gemini-embedding-001` com `outputDimensionality=768` |
 | LLM | Google Gemini `gemini-2.5-flash` |
-| Arquivos | Pasta local `backend/uploads` |
+| Arquivos | Supabase Storage (`FILE_STORAGE_PROVIDER=supabase`) com fallback local |
 
 ## Estado atual
 
@@ -24,6 +24,7 @@ O fluxo principal esta funcional:
 - persistencia no Supabase
 - busca vetorial
 - resposta RAG com fontes
+- armazenamento de upload em nuvem quando `FILE_STORAGE_PROVIDER=supabase`
 
 Correcaoes aplicadas nesta sessao:
 
@@ -72,15 +73,19 @@ Preencha o `.env` com:
 ```env
 SUPABASE_URL=https://xxxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
+SUPABASE_STORAGE_BUCKET=documents
 GOOGLE_API_KEY=AIzaSy...
 GEMINI_LLM_MODEL=gemini-2.5-flash
 GEMINI_API_VERSION=v1beta
+FILE_STORAGE_PROVIDER=supabase
 ```
 
 Observacoes:
 
 - `GEMINI_LLM_MODEL` e `GEMINI_API_VERSION` sao opcionais, mas esses sao os valores atuais usados pelo projeto.
 - embeddings usam `gemini-embedding-001` fixamente no backend.
+- `FILE_STORAGE_PROVIDER` aceita `supabase` (recomendado) ou `local`.
+- para modo nuvem, garanta que o bucket em `SUPABASE_STORAGE_BUCKET` exista no projeto.
 
 ### 3. Instalar dependencias
 
@@ -147,8 +152,8 @@ rag-mvp/
 |---|---|---|
 | Tamanho do chunk | `backend/src/services/chunking.service.js` | 1000 chars |
 | Overlap | `backend/src/services/chunking.service.js` | 150 chars |
-| Top-K | `backend/src/services/retrieval.service.js` | 5 |
-| Temperatura LLM | `backend/src/services/answer.service.js` | 0.2 |
+| Top-K | `backend/src/services/retrieval.service.js` | 4 |
+| Temperatura LLM | `backend/src/services/answer.service.js` | 0.3 |
 | Tamanho maximo de upload | `.env` -> `MAX_FILE_SIZE_MB` | 10 MB |
 
 ## Limitacoes atuais
