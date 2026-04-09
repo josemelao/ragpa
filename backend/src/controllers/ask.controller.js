@@ -35,6 +35,84 @@ function isDocumentListQuestion(question) {
   return patterns.some((pattern) => normalized.includes(pattern));
 }
 
+function isExtractCountQuestion(question) {
+  const normalized = normalizeText(question);
+  const hasExtractTerm = normalized.includes('extrato') || normalized.includes('ufpa');
+  const hasCountIntent = /\b(quantos|quantas|qtd|quantidade|numero|existem|ha)\b/.test(normalized);
+  const hasIndexedHint = normalized.includes('indexad') || normalized.includes('enviad') || normalized.includes('cadastrad');
+  return hasExtractTerm && (hasCountIntent || hasIndexedHint);
+}
+
+function isExtractListQuestion(question) {
+  const normalized = normalizeText(question);
+  const hasExtractTerm = normalized.includes('extrato') || normalized.includes('ufpa');
+  const hasListIntent = /\b(lista|listar|liste|mostre|quais)\b/.test(normalized);
+  return hasExtractTerm && hasListIntent;
+}
+
+function isGenericListFollowUp(question) {
+  const normalized = normalizeText(question);
+  const terms = normalized.match(/[a-z0-9_-]{2,}/g) || [];
+  const hasListIntent = /\b(lista|listar|liste|mostre|todos|todas)\b/.test(normalized);
+  const hasDetailTerms = /\b(composicao|familiar|familia|nomes|nome|pessoa|pessoas|conjuge|cpf|endereco|situacao|pronaf|validade|inscricao|data|membro|membros)\b/.test(normalized);
+  const isShortGeneric = terms.length <= 4;
+  return hasListIntent && isShortGeneric && !hasDetailTerms;
+}
+
+function shouldTreatAsExtractListFollowUp(question, messages) {
+  if (!isGenericListFollowUp(question)) {
+    return false;
+  }
+
+  const recent = [...(messages || [])].reverse().slice(0, 6);
+  return recent.some((msg) => {
+    const text = normalizeText(msg.content || '');
+    return (
+      text.includes('extratos indexados') ||
+      text.includes('extrato') ||
+      text.includes('ufpa')
+    );
+  });
+}
+
+function getIndexedExtractDocuments(documents) {
+  return (documents || []).filter((doc) => {
+    const name = normalizeText(doc.original_name || '');
+    return name.includes('extrato') || name.includes('ufpa');
+  });
+}
+
+function buildExtractCountAnswer(extractDocuments) {
+  const unique = new Map();
+  for (const doc of extractDocuments || []) {
+    if (!doc?.id || unique.has(doc.id)) continue;
+    unique.set(doc.id, doc);
+  }
+
+  const count = unique.size;
+  if (count === 0) {
+    return 'Nao ha extratos indexados no momento.';
+  }
+
+  return `Existem ${count} extrato${count === 1 ? '' : 's'} indexado${count === 1 ? '' : 's'}.`;
+}
+
+function buildExtractListAnswer(extractDocuments) {
+  const unique = new Map();
+  for (const doc of extractDocuments || []) {
+    if (!doc?.id || unique.has(doc.id)) continue;
+    unique.set(doc.id, doc);
+  }
+
+  const docs = [...unique.values()];
+  if (docs.length === 0) {
+    return 'Nao ha extratos indexados no momento.';
+  }
+
+  const lines = docs.map((doc, index) => `${index + 1}. ${doc.original_name || 'documento'}`);
+  return `Extratos indexados (${docs.length}):\n${lines.join('\n')}`;
+}
+
 function buildDocumentListAnswer(documents) {
   if (documents.length === 0) {
     return 'Nao ha documentos indexados no momento.';
@@ -275,9 +353,9 @@ async function handleAsk(req, res) {
 
     const conversation = await getConversationById(conversationId);
     const conversationMessages = await listConversationMessages(conversationId, { limit: 20 });
+    const documents = await listDocuments();
 
     if (isDocumentListQuestion(normalizedQuestion)) {
-      const documents = await listDocuments();
       const answer = buildDocumentListAnswer(documents);
 
       await saveConversationMessage({
@@ -294,8 +372,44 @@ async function handleAsk(req, res) {
       });
     }
 
+    if (isExtractCountQuestion(normalizedQuestion)) {
+      const answer = buildExtractCountAnswer(getIndexedExtractDocuments(documents));
+
+      await saveConversationMessage({
+        conversationId,
+        role: 'assistant',
+        content: answer,
+        sourcesJson: [],
+      });
+
+      return res.json({
+        answer,
+        sources: [],
+        conversationId,
+      });
+    }
+
+    if (
+      isExtractListQuestion(normalizedQuestion) ||
+      shouldTreatAsExtractListFollowUp(normalizedQuestion, conversationMessages)
+    ) {
+      const answer = buildExtractListAnswer(getIndexedExtractDocuments(documents));
+
+      await saveConversationMessage({
+        conversationId,
+        role: 'assistant',
+        content: answer,
+        sourcesJson: [],
+      });
+
+      return res.json({
+        answer,
+        sources: [],
+        conversationId,
+      });
+    }
+
     const retrievalQuestion = buildRetrievalQuestion(normalizedQuestion, conversationMessages);
-    const documents = await listDocuments();
     const matchedIds = matchDocumentIdsByQuestion(normalizedQuestion, documents);
     const preferredDocumentIds = extractPreferredDocumentIds(conversationMessages);
     const effectivePreferredIds = mergeUniqueIds(matchedIds, preferredDocumentIds);
