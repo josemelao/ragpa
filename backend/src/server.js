@@ -8,6 +8,7 @@ const config = require('./config/env');
 
 const uploadRoutes = require('./routes/upload.routes');
 const askRoutes = require('./routes/ask.routes');
+const conversationRoutes = require('./routes/conversation.routes');
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use(express.static(path.join(__dirname, '../../frontend')));
 
 app.use('/api/upload', uploadRoutes);
 app.use('/api/ask', askRoutes);
+app.use('/api/conversations', conversationRoutes);
 
 app.get('/api/health', async (req, res) => {
   let supabaseStatus = 'nao verificado';

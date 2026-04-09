@@ -1398,17 +1398,17 @@ Bugs a procurar:
 
 ## Checklist detalhado de implementacao
 
-- [ ] Definir schema de `conversations`
-- [ ] Definir schema de `conversation_messages`
-- [ ] Criar SQL incremental seguro
-- [ ] Criar service dedicado para conversa
-- [ ] Criar funcao para criar conversa
-- [ ] Criar funcao para carregar conversa por ID
-- [ ] Criar funcao para listar ultimas mensagens
-- [ ] Criar funcao para salvar mensagem do usuario
-- [ ] Criar funcao para salvar mensagem do assistente
-- [ ] Criar funcao para atualizar `updated_at` da conversa
-- [ ] Criar estrutura para `summary`
+- [x] Definir schema de `conversations`
+- [x] Definir schema de `conversation_messages`
+- [x] Criar SQL incremental seguro
+- [x] Criar service dedicado para conversa
+- [x] Criar funcao para criar conversa
+- [x] Criar funcao para carregar conversa por ID
+- [x] Criar funcao para listar ultimas mensagens
+- [x] Criar funcao para salvar mensagem do usuario
+- [x] Criar funcao para salvar mensagem do assistente
+- [x] Criar funcao para atualizar `updated_at` da conversa
+- [x] Criar estrutura para `summary`
 - [ ] Definir limite maximo de mensagens recentes no prompt
 - [ ] Definir limite maximo de tamanho do resumo
 - [ ] Ajustar `ask.controller` para aceitar `conversationId`
@@ -1675,4 +1675,50 @@ Proximo passo:
 - executar a fase A da memoria conversacional e atualizar SQL/servicos/rotas com validacao
 Observacoes:
 - itens marcados como concluidos foram baseados em implementacao existente e logs previos; itens de governanca/politica permanecem em aberto
+```
+
+```txt
+[LOG MEM 01]
+Data: 2026-04-09
+Agente: Codex
+Fase: Memoria conversacional - Fase A (schema e service base)
+Escopo: criar estruturas persistentes de conversa no Supabase e service backend dedicado
+Objetivo: preparar a base tecnica da memoria sem alterar ainda o fluxo principal do /api/ask
+Arquivos criados:
+- docs/sql/2026-04-09-conversations.sql
+- backend/src/services/conversation.service.js
+- backend/src/controllers/conversation.controller.js
+- backend/src/routes/conversation.routes.js
+Arquivos alterados:
+- backend/src/server.js
+- plano-mvp-rag-v1.0.md
+Dependencias instaladas: nenhuma
+Comandos executados:
+- leitura de SQL e backend atuais
+- validacao de integracao local por leitura estrutural dos modulos
+Validacao executada:
+- verificacao de rotas registradas em /api/conversations
+- revisao de consistencia entre schema e service
+Resultado:
+- schema incremental criado com `conversations` e `conversation_messages`
+- trigger para atualizar `updated_at` da conversa em novas mensagens
+- service com funcoes de criar/buscar conversa, listar mensagens, salvar mensagens e atualizar resumo
+- endpoints minimos criados para criar conversa e consultar conversa/mensagens
+Como testar:
+- aplicar SQL incremental no Supabase
+- POST /api/conversations
+- GET /api/conversations/:id
+- GET /api/conversations/:id/messages
+Bugs procurados:
+- integridade de chave estrangeira entre mensagem e conversa
+- limite e ordenacao de mensagens por `created_at`
+Pendencias:
+- integrar `conversationId` no fluxo de pergunta (`/api/ask`)
+- persistir mensagens user/assistant dentro do fluxo RAG
+- incluir historico curto e resumo no prompt
+- implementar "nova conversa" no frontend
+Proximo passo:
+- iniciar Fase B/C com integracao de `conversationId` em backend e frontend
+Observacoes:
+- esta etapa nao altera a resposta do chat atual; apenas prepara infraestrutura para continuidade
 ```
