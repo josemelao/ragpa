@@ -3,7 +3,7 @@
 **Stack-alvo:** custo zero / free tier / pronto para evoluir  
 **Ferramenta principal de execução:** Claude Code  
 **Data de abertura:** 2026-04-06  
-**Status geral:** ABERTO — planejamento inicial
+**Status geral:** EM EXECUCAO — MVP funcional com pendencias de consolidacao e evolucao
 
 ---
 
@@ -541,14 +541,14 @@ Sempre fazer **uma fase por vez**.
 
 # 13. CHECKLIST DE EXECUÇÃO POR BLOCO
 
-- [ ] Escopo da etapa definido
-- [ ] Arquivos alvo definidos
-- [ ] Dependências instaladas
-- [ ] Implementação mínima aplicada
-- [ ] Teste local executado
-- [ ] Erros corrigidos
-- [ ] Resultado registrado no log
-- [ ] Próxima etapa identificada
+- [x] Escopo da etapa definido
+- [x] Arquivos alvo definidos
+- [x] Dependências instaladas
+- [x] Implementação mínima aplicada
+- [x] Teste local executado
+- [x] Erros corrigidos
+- [x] Resultado registrado no log
+- [x] Próxima etapa identificada
 
 ---
 
@@ -926,60 +926,60 @@ Ao final da migracao:
 
 ## Checklist de implementacao
 
-- [ ] Definir o nome do bucket no Supabase Storage
+- [x] Definir o nome do bucket no Supabase Storage
 - [ ] Definir se o bucket sera privado ou publico
-- [ ] Adicionar variaveis de ambiente como `SUPABASE_STORAGE_BUCKET` e opcionalmente `FILE_STORAGE_PROVIDER`
-- [ ] Criar service dedicado para storage, por exemplo `storage.service.js`
-- [ ] Implementar funcao de upload para buffer no Supabase Storage
-- [ ] Implementar funcao de download para buffer no Supabase Storage
-- [ ] Implementar funcao opcional de delete no Supabase Storage
-- [ ] Trocar `multer.diskStorage` por `multer.memoryStorage`
-- [ ] Preservar a heuristica atual de correcao de encoding de `originalname`
-- [ ] Ajustar o parser para aceitar buffer alem de caminho local
-- [ ] Garantir que `pdf-parse` funcione a partir de buffer
-- [ ] Garantir que `.txt` e `.md` sejam lidos de buffer com UTF-8
-- [ ] Revisar necessidade de fallback para arquivos com BOM ou encoding inesperado
-- [ ] Definir formato de chave do objeto no bucket sem depender de nome original puro
-- [ ] Continuar guardando `original_name` separado da chave tecnica do objeto
-- [ ] Revisar se `documents.filename` sera reutilizado ou substituido por `storage_path`
+- [x] Adicionar variaveis de ambiente como `SUPABASE_STORAGE_BUCKET` e opcionalmente `FILE_STORAGE_PROVIDER`
+- [x] Criar service dedicado para storage, por exemplo `storage.service.js`
+- [x] Implementar funcao de upload para buffer no Supabase Storage
+- [x] Implementar funcao de download para buffer no Supabase Storage
+- [x] Implementar funcao opcional de delete no Supabase Storage
+- [x] Trocar `multer.diskStorage` por `multer.memoryStorage`
+- [x] Preservar a heuristica atual de correcao de encoding de `originalname`
+- [x] Ajustar o parser para aceitar buffer alem de caminho local
+- [x] Garantir que `pdf-parse` funcione a partir de buffer
+- [x] Garantir que `.txt` e `.md` sejam lidos de buffer com UTF-8
+- [x] Revisar necessidade de fallback para arquivos com BOM ou encoding inesperado
+- [x] Definir formato de chave do objeto no bucket sem depender de nome original puro
+- [x] Continuar guardando `original_name` separado da chave tecnica do objeto
+- [x] Revisar se `documents.filename` sera reutilizado ou substituido por `storage_path`
 - [ ] Se houver mudanca de schema, criar SQL de migracao incremental em vez de sobrescrever dados existentes
-- [ ] Garantir que novos uploads nao escrevam mais em `backend/uploads`
-- [ ] Garantir que erros de upload no Storage abortem a indexacao inteira de forma limpa
-- [ ] Garantir que erro de parsing nao deixe lixo inconsistente no bucket sem politica definida
-- [ ] Definir politica de rollback em caso de falha apos upload do arquivo mas antes de salvar chunks
-- [ ] Revisar limites de tamanho e memoria para upload em buffer
-- [ ] Testar upload de `.txt` com acentos
-- [ ] Testar upload de `.md` com acentos
-- [ ] Testar upload de `.pdf` com nome acentuado
-- [ ] Testar listagem de documentos apos a migracao
-- [ ] Testar perguntas RAG apos a migracao
-- [ ] Testar perguntas de inventario de documentos
-- [ ] Testar strings literais apos a migracao
+- [x] Garantir que novos uploads nao escrevam mais em `backend/uploads`
+- [x] Garantir que erros de upload no Storage abortem a indexacao inteira de forma limpa
+- [x] Garantir que erro de parsing nao deixe lixo inconsistente no bucket sem politica definida
+- [x] Definir politica de rollback em caso de falha apos upload do arquivo mas antes de salvar chunks
+- [x] Revisar limites de tamanho e memoria para upload em buffer
+- [x] Testar upload de `.txt` com acentos
+- [x] Testar upload de `.md` com acentos
+- [x] Testar upload de `.pdf` com nome acentuado
+- [x] Testar listagem de documentos apos a migracao
+- [x] Testar perguntas RAG apos a migracao
+- [x] Testar perguntas de inventario de documentos
+- [x] Testar strings literais apos a migracao
 - [ ] Confirmar que nenhum arquivo novo esta sendo criado em `backend/uploads`
 - [ ] Atualizar README e logs quando a migracao for concluida
 
 ## Checklist de validacao funcional
 
-- [ ] Upload retorna sucesso e salva o arquivo no bucket
-- [ ] Nome original aparece corretamente na UI
-- [ ] Metadados aparecem corretamente na lista de documentos
-- [ ] Texto do arquivo e extraido corretamente
-- [ ] Chunks sao persistidos no banco
-- [ ] Embeddings sao gerados normalmente
-- [ ] Busca vetorial continua funcionando
-- [ ] Busca textual continua funcionando
-- [ ] Resposta RAG continua funcionando
-- [ ] Nao ha dependencia de arquivo local para uploads novos
+- [x] Upload retorna sucesso e salva o arquivo no bucket
+- [x] Nome original aparece corretamente na UI
+- [x] Metadados aparecem corretamente na lista de documentos
+- [x] Texto do arquivo e extraido corretamente
+- [x] Chunks sao persistidos no banco
+- [x] Embeddings sao gerados normalmente
+- [x] Busca vetorial continua funcionando
+- [x] Busca textual continua funcionando
+- [x] Resposta RAG continua funcionando
+- [x] Nao ha dependencia de arquivo local para uploads novos
 
 ## Checklist de seguranca e integridade
 
 - [ ] Bucket configurado com politica minima necessaria
-- [ ] Service role usada apenas no backend
-- [ ] Nenhuma chave sensivel exposta ao frontend
-- [ ] Falha de upload nao cria registro incompleto no banco
-- [ ] Falha de indexacao nao deixa estado inconsistente sem log
-- [ ] Chave do objeto no bucket nao depende de input bruto do usuario sem sanitizacao
-- [ ] `original_name` e preservado sem corromper encoding
+- [x] Service role usada apenas no backend
+- [x] Nenhuma chave sensivel exposta ao frontend
+- [x] Falha de upload nao cria registro incompleto no banco
+- [x] Falha de indexacao nao deixa estado inconsistente sem log
+- [x] Chave do objeto no bucket nao depende de input bruto do usuario sem sanitizacao
+- [x] `original_name` e preservado sem corromper encoding
 
 ## Ordem recomendada de execucao
 
@@ -1644,4 +1644,36 @@ Proximo passo:
 - iniciar Fase A com schema de conversa e service dedicado
 Observacoes:
 - a memoria deve melhorar continuidade sem competir com o contexto dos documentos
+```
+
+```txt
+[LOG 09]
+Data: 2026-04-09
+Agente: Codex
+Fase: Consolidacao de checklist e status do plano
+Escopo: revisar o plano e marcar itens concluidos com base em logs e implementacao atual
+Objetivo: separar claramente o que ja foi feito do que ainda esta pendente
+Arquivos criados: nenhum
+Arquivos alterados:
+- plano-mvp-rag-v1.0.md
+Dependencias instaladas: nenhuma
+Comandos executados:
+- leitura do plano e checklists
+- leitura de arquivos de backend (storage, upload, parser, retrieval, answer, config)
+Validacao executada:
+- cruzamento entre LOG 01-08 e codigo atual
+Resultado:
+- checklist de migracao para Supabase Storage atualizado com itens concluidos
+- checklist funcional e de integridade atualizado com evidencias do codigo e testes reportados
+- status geral atualizado para "EM EXECUCAO"
+Pendencias:
+- definir e validar politica do bucket (privado/publico e politicas minimas)
+- confirmar operacionalmente ausencia de novos arquivos em `backend/uploads` no ambiente atual
+- atualizar README para refletir claramente o modo cloud-only quando `FILE_STORAGE_PROVIDER=supabase`
+- decidir e executar (ou descartar) migracao de legado em `backend/uploads`
+- concluir plano de memoria conversacional (schema, backend, frontend, validacao)
+Proximo passo:
+- executar a fase A da memoria conversacional e atualizar SQL/servicos/rotas com validacao
+Observacoes:
+- itens marcados como concluidos foram baseados em implementacao existente e logs previos; itens de governanca/politica permanecem em aberto
 ```
