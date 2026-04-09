@@ -59,6 +59,16 @@ function normalizeText(value) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+function normalizeQuestionTypos(question) {
+  return String(question || '')
+    .replace(/\bquants\b/gi, 'quantas')
+    .replace(/\bqnts\b/gi, 'quantas')
+    .replace(/\bqtas\b/gi, 'quantas')
+    .replace(/\bqto\b/gi, 'quanto')
+    .replace(/\bqtos\b/gi, 'quantos')
+    .trim();
+}
+
 function extractSearchTerms(question) {
   const stopwords = new Set([
     'como', 'para', 'sobre', 'quais', 'qual', 'listar', 'liste', 'mostre', 'mostrar',
@@ -106,6 +116,14 @@ function isLikelyFollowUpQuestion(question) {
   return isShort || hasFollowUpSignal;
 }
 
+function isLineCountQuestion(question) {
+  const normalized = normalizeText(question);
+  return (
+    (normalized.includes('quant') || normalized.includes('numero')) &&
+    normalized.includes('linha')
+  );
+}
+
 function buildRetrievalQuestion(question, messages) {
   if (!isLikelyFollowUpQuestion(question)) {
     return question;
@@ -123,6 +141,30 @@ function buildRetrievalQuestion(question, messages) {
     .join('\n');
 
   return `${previousContext}\nPergunta de continuidade: ${question}`;
+}
+
+function extractDeterministicAnswer(question, chunks) {
+  if (!isLineCountQuestion(question)) {
+    return null;
+  }
+
+  for (const chunk of chunks || []) {
+    const text = String(chunk.content || '');
+
+    const tratorMatch = text.match(/trator\s+de\s+(\d+)\s+linha(?:s)?/i);
+    if (tratorMatch) {
+      const lines = tratorMatch[1];
+      return `O trator solicitado e de ${lines} linha${lines === '1' ? '' : 's'}.`;
+    }
+
+    const genericMatch = text.match(/\b(\d+)\s+linha(?:s)?\b/i);
+    if (genericMatch) {
+      const lines = genericMatch[1];
+      return `O documento menciona ${lines} linha${lines === '1' ? '' : 's'}.`;
+    }
+  }
+
+  return null;
 }
 
 function extractPreferredDocumentIds(messages) {
@@ -220,6 +262,7 @@ async function handleAsk(req, res) {
   }
 
   const trimmedQuestion = question.trim();
+  const normalizedQuestion = normalizeQuestionTypos(trimmedQuestion);
   logger.info(`Pergunta recebida: "${trimmedQuestion.slice(0, 80)}"`);
 
   try {
@@ -233,7 +276,7 @@ async function handleAsk(req, res) {
     const conversation = await getConversationById(conversationId);
     const conversationMessages = await listConversationMessages(conversationId, { limit: 20 });
 
-    if (isDocumentListQuestion(trimmedQuestion)) {
+    if (isDocumentListQuestion(normalizedQuestion)) {
       const documents = await listDocuments();
       const answer = buildDocumentListAnswer(documents);
 
@@ -251,9 +294,9 @@ async function handleAsk(req, res) {
       });
     }
 
-    const retrievalQuestion = buildRetrievalQuestion(trimmedQuestion, conversationMessages);
+    const retrievalQuestion = buildRetrievalQuestion(normalizedQuestion, conversationMessages);
     const documents = await listDocuments();
-    const matchedIds = matchDocumentIdsByQuestion(trimmedQuestion, documents);
+    const matchedIds = matchDocumentIdsByQuestion(normalizedQuestion, documents);
     const preferredDocumentIds = extractPreferredDocumentIds(conversationMessages);
     const effectivePreferredIds = mergeUniqueIds(matchedIds, preferredDocumentIds);
     let chunks = await retrieveRelevantChunks(retrievalQuestion, {
@@ -284,11 +327,12 @@ async function handleAsk(req, res) {
       });
     }
 
+    const deterministicAnswer = extractDeterministicAnswer(normalizedQuestion, chunks);
     const conversationHistory = buildConversationHistoryForPrompt(
       conversationMessages,
-      trimmedQuestion
+      normalizedQuestion
     );
-    const answer = await generateAnswer(trimmedQuestion, chunks, responseMode, {
+    const answer = deterministicAnswer || await generateAnswer(normalizedQuestion, chunks, responseMode, {
       conversationHistory,
       conversationSummary: conversation?.summary || null,
     });
