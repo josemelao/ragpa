@@ -1421,15 +1421,15 @@ Bugs a procurar:
 - [x] Garantir fallback quando nao houver resumo
 - [x] Garantir fallback quando o resumo falhar
 - [x] Definir gatilho de atualizacao do resumo
-- [ ] Garantir que o resumo nao seja atualizado em caso de erro de resposta
+- [x] Garantir que o resumo nao seja atualizado em caso de erro de resposta
 - [x] Persistir `conversationId` no frontend
 - [x] Criar acao de "nova conversa"
 - [x] Limpar o estado local ao iniciar nova conversa
-- [ ] Confirmar que follow-up funciona com a mesma conversa
-- [ ] Confirmar que follow-up nao vaza para nova conversa
-- [ ] Testar com documentos reais
+- [x] Confirmar que follow-up funciona com a mesma conversa
+- [x] Confirmar que follow-up nao vaza para nova conversa
+- [x] Testar com documentos reais
 - [ ] Atualizar README
-- [ ] Atualizar este plano com logs de execucao
+- [x] Atualizar este plano com logs de execucao
 
 ## Checklist de validacao por etapa
 
@@ -1517,14 +1517,14 @@ Bugs a procurar:
 - [ ] Indexacao continua funcionando
 - [ ] Listagem de documentos continua funcionando
 - [ ] Exclusao de documentos continua funcionando
-- [ ] Busca textual continua funcionando
-- [ ] Busca vetorial continua funcionando
+- [x] Busca textual continua funcionando
+- [x] Busca vetorial continua funcionando
 - [ ] Modo de resposta `Conservadora` continua conservador
 - [ ] Modo de resposta `Equilibrada` continua intermediario
 - [ ] Modo de resposta `Flexivel` continua controlado
-- [ ] Pergunta sem `conversationId` continua funcionando
-- [ ] Pergunta com `conversationId` funciona com continuidade
-- [ ] Nova conversa realmente limpa o contexto
+- [x] Pergunta sem `conversationId` continua funcionando
+- [x] Pergunta com `conversationId` funciona com continuidade
+- [x] Nova conversa realmente limpa o contexto
 
 ## Casos de teste recomendados
 
@@ -1854,4 +1854,50 @@ Proximo passo:
 - rodar bateria de testes de regressao e calibrar thresholds de retrieval/follow-up
 Observacoes:
 - resumo atual e conservador e derivado das ultimas mensagens; nao usa LLM dedicado para sumarizacao nesta fase
+```
+
+```txt
+[LOG MEM 05]
+Data: 2026-04-09
+Agente: Codex
+Fase: Memoria conversacional - refinamento final de continuidade e estilo
+Escopo: reduzir falhas em follow-up curto e remover verbosidade desnecessaria da resposta
+Objetivo: manter alta precisao com respostas mais diretas e naturais
+Arquivos criados: nenhum
+Arquivos alterados:
+- backend/src/controllers/ask.controller.js
+- backend/src/services/retrieval.service.js
+- backend/src/services/vectorStore.service.js
+- backend/src/services/answer.service.js
+- plano-mvp-rag-v1.0.md
+Dependencias instaladas: nenhuma
+Comandos executados:
+- ajustes incrementais no controller/retrieval/answer
+- validacoes com `node --check`
+- testes manuais iterativos com perguntas reais sobre Oficio 55
+Validacao executada:
+- follow-up na mesma conversa ("com que objetivo?", "quantas linhas?") com melhor continuidade
+- confirmacao de isolamento entre conversas ao usar "Nova conversa"
+- confirmacao de resposta objetiva para pergunta literal ("O trator solicitado e de 1 linha.")
+Resultado:
+- pergunta de continuidade passou a ser usada no retrieval sem vazar para texto final da resposta
+- heuristicas de typo/follow-up e extracao deterministica para "trator de X linha(s)" implementadas
+- priorizacao de documento citado reforcada para reduzir "nao encontrei" falso
+- estilo de resposta ficou mais direto (menos preambulo e redundancia)
+Como testar:
+- "oficio 55 fala sobre o que"
+- "com que objetivo?"
+- "quants linhas de trator"
+- "nova conversa" e nova pergunta curta para confirmar nao vazamento
+Bugs procurados:
+- perda de contexto em pergunta curta
+- resposta com "enrolacao" ou repeticao da pergunta
+- mistura de contexto de conversa antiga
+Pendencias:
+- calibracao fina residual em follow-up ambiguo entre multiplos documentos parecidos
+- fechamento integral do checklist de regressao geral (upload/indexacao/exclusao/modos) em rodada dedicada
+Proximo passo:
+- executar bateria curta de regressao end-to-end e consolidar ultimo bloco de checklist
+Observacoes:
+- o comportamento foi considerado de "bom agrado" pelo usuario para continuidade desta etapa
 ```
